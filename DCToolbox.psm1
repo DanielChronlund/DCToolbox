@@ -1086,7 +1086,7 @@ function Export-DCConditionalAccessAssignments {
             Export-DCConditionalAccessAssignments
             
         .SYNOPSIS
-            This CMDlet uses PowerShell and Microsoft Graph to automatically generate an Excel report containing Conditional Access assignments in your Azure AD.
+            Automatically generate an Excel report containing Conditional Access assignments in your Azure AD.
 
         .DESCRIPTION
             The CMDlet uses Microsoft Graph to fetch all Conditional Access policy assignments, both group- and user assignments (for now, it doesn't support role assignments). It exports them to Excel in a nicely formatted report for your filtering and analysing needs. If you include the -IncludeGroupMembers parameter, members of assigned groups will be included in the report as well (of course, this can produce very large reports if you have included large groups in your policy assignments).
