@@ -1,31 +1,39 @@
 # DCToolbox
 
-A PowerShell Toolbox for Microsoft 365 Security Fans
+A PowerShell Toolbox for Microsoft 365 Security Fans.
 
 Author: Daniel Chronlund
 
 ---------------------------------------------------
 
-This PowerShell module contains a collection of tools for Microsoft 365, Microsoft Graph, Azure AD security, Conditional Access, Zero Trust strategies, attack and defense, etc.
+<h1>Introduction</h1>
+
+This PowerShell module contains a collection of tools for Microsoft 365 security, Microsoft Graph, Azure AD security, Conditional Access, Zero Trust strategies, attack and defense scenarious, etc.
 
 Feel free to use these tools in your own work. You are also free to modify them to suit your needs.
 
 ---------------------------------------------------
 
-To get started, explore and copy the examples to your clipboard with:
+<h1>Get Started</h1>
+
+To get started, explore and copy examples to your clipboard with:
 
 <b>Copy-DCExample</b>
 
+---------------------------------------------------
 
-Included tools
+<h1>Included Tools</h1>
 
-<b>Install-DCConditionalAccessPolicyBaseline</b>
+<h2>Install-DCConditionalAccessPolicyBaseline</h2>
+
 Let you install a complete Conditional Access policy design from a CSV file.
 
-<b>Export-DCConditionalAccessAssignments</b>
-Automatically generate an Excel report containing Conditional Access assignments in your Azure AD.
+<h2>Export-DCConditionalAccessAssignments</h2>
 
+Automatically generate an Excel report containing Conditional Access assignments in your Azure AD.
 
 ---------------------------------------------------
 
-Please follow me on my blog https://danielchronlund.com, on LinkedIn and on Twitter: @DanielChronlund
+Please follow me on my blog https://danielchronlund.com, on LinkedIn and on Twitter!
+
+@DanielChronlund
