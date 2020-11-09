@@ -1,34 +1,37 @@
 function Get-DCHelp {
     $HelpText = @'
 
- ___   ___ _____         _ _             
-|   \ / __|_   _|__  ___| | |__  _____ __
-| |) | (__  | |/ _ \/ _ \ | '_ \/ _ \ \ /
-|___/ \___| |_|\___/\___/_|_.__/\___/_\_\
-                                            
-A PowerShell Toolbox for Microsoft 365 security fans.
+    ____  ____________            ____              
+   / __ \/ ____/_  __/___  ____  / / /_  ____  _  __
+  / / / / /     / / / __ \/ __ \/ / __ \/ __ \| |/_/
+ / /_/ / /___  / / / /_/ / /_/ / / /_/ / /_/ />  <  
+/_____/\____/ /_/  \____/\____/_/_.___/\____/_/|_|  
+
+A PowerShell toolbox for Microsoft 365 security fans.
 
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.1
+Version: 1.0.2
 
-This PowerShell module contains a collection of tools for work around Microsoft 365 security, Microsoft Graph, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
+This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
 Feel free to use these tools in your own work.
 
 The home of this module: https://github.com/DanielChronlund/DCToolbox
 
 Please follow me on my blog https://danielchronlund.com, on LinkedIn and on Twitter!
+
 @DanielChronlund
 
-To get started, explore and copy script examples to your clipboard with:
 
-Copy-DCExample
+To get started, explore and copy script examples to your clipboard with:
 
 '@
 
     Write-Host -ForegroundColor "Yellow" $HelpText
+    Write-Host -ForegroundColor "Cyan" "Copy-DCExample"
+    Write-Host ""
 }
 
 
@@ -161,8 +164,8 @@ Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $Gr
             }
 			2 {
 				$Snippet = @'
-$ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'
-$ClientSecret = 'j[BQNSi2dSWj4od92ritl_DHJvl1sG.Y/'
+$ClientID = ''
+$ClientSecret = ''
 $ExcludeGroup = 'Excluded from CA'
 $ServiceAccountGroup = 'Service Accounts'
 $TermsOfUse = 'Terms of Use'
@@ -176,8 +179,8 @@ Install-DCConditionalAccessPolicyBaseline -ClientID $ClientID -ClientSecret $Cli
 			}
 			3 {
 				$Snippet = @'
-$ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'
-$ClientSecret = 'j[BQNSi2dSWj4od92ritl_DHJvl1sG.Y/'
+$ClientID = ''
+$ClientSecret = ''
 
 Export-DCConditionalAccessAssignments -ClientID $ClientID -ClientSecret $ClientSecret -IncludeGroupMembers
 
@@ -205,7 +208,7 @@ X
 	
 
 	# Create example menu.
-	$Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Install-DCConditionalAccessPolicyBaseline", "Export-DCConditionalAccessAssignments"
+	$Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Deploy Conditional Access (Install-DCConditionalAccessPolicyBaseline)", "Export Conditional Access Assignments (Export-DCConditionalAccessAssignments)"
 	
 
 	# Handle menu choice.
@@ -248,9 +251,7 @@ function Connect-DCMsGraphAsDelegated {
             None
 
         .NOTES
-            Version:        2.0
             Author:         Daniel Chronlund
-            Creation Date:  2020-11-09
         
         .EXAMPLE
             $AccessToken = Connect-DCMsGraphAsDelegated -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/'
@@ -364,9 +365,7 @@ function Connect-DCMsGraphAsApplication {
             None
 
         .NOTES
-            Version:        2.0
             Author:         Daniel Chronlund
-            Creation Date:  2020-11-09
         
         .EXAMPLE
             $AccessToken = Connect-DCMsGraphAsApplication -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/' -TenantName 'example.onmicrosoft.com'
@@ -445,9 +444,7 @@ function Invoke-DCMsGraphQuery {
             None
 
         .NOTES
-            Version:        2.0
             Author:         Daniel Chronlund
-            Creation Date:  2020-11-09
         
         .EXAMPLE
             Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri 'https://graph.microsoft.com/v1.0/users/'
@@ -539,10 +536,10 @@ function Install-DCConditionalAccessPolicyBaseline {
             Install-DCConditionalAccessPolicyBaseline
             
         .SYNOPSIS
-            Let you install a complete Conditional Access policy design from a CSV file.
+            Let you install a complete Conditional Access policy design.
 
         .DESCRIPTION
-            This CMDlet uses Microsoft Graph to automatically create Conditional Access policies based on a CSV template file.
+            This CMDlet uses Microsoft Graph to automatically create Conditional Access policies.
 
             Before runnning this CMDlet, you first need to register a new application in your Azure AD according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
@@ -558,9 +555,9 @@ function Install-DCConditionalAccessPolicyBaseline {
 
             As a best practice you should always have a Azure AD security group with break glass accounts excluded from all Conditional Access policies. Specify the break glass groups displayname with the $ExcludeGroup variable.
 
-            The policy design in the CSV example file contains a Terms of Use policy. Make sure there is a Terms of Use object created in Azure AD before you run this script. Then set the $TermsOfUse variable in this script to its displayname in Azure AD.
+            The policy design contains a Terms of Use policy. Make sure there is a Terms of Use object created in Azure AD before you run this script. Then set the $TermsOfUse variable in this script to its displayname in Azure AD.
 
-            The policy design in the CSV example file will create a policy, blocking all countries not explicitly allowed in a named location whitelist. Make sure there is an named location in Azure AD containing your organizations allowed countries. Set the $AllowedCountries variable to its displayname.
+            The policy design will create a policy blocking all countries not explicitly allowed in a named location whitelist. Make sure there is an named location in Azure AD containing your organizations allowed countries. Set the $AllowedCountries variable to its displayname.
             
         .PARAMETERS
             -ClientID <String>
@@ -594,9 +591,7 @@ function Install-DCConditionalAccessPolicyBaseline {
             None
 
         .NOTES
-            Version:        2.0
             Author:         Daniel Chronlund
-            Creation Date:  2020-11-09
         
         .EXAMPLE
             $ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'
@@ -1208,9 +1203,7 @@ function Export-DCConditionalAccessAssignments {
             None
 
         .NOTES
-            Version:        2.0
             Author:         Daniel Chronlund
-            Creation Date:  2020-11-09
         
         .EXAMPLE
             $ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'

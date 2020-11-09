@@ -8,7 +8,7 @@ Author: Daniel Chronlund
 
 <h2>Introduction</h2>
 
-This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
+This PowerShell module contains a collection of tools for Microsoft 365 security fans, Microsoft Graph functions, Azure AD advanced management, Conditional Access automation, zero trust implementation tools, attack- and defense scenarios, etc.
 
 ---------------------------------------------------
 
@@ -24,7 +24,11 @@ If you already have it, update to the latest version:
 
 PowerShell Gallery package link: https://www.powershellgallery.com/packages/DCToolbox
 
-To get started, explore and copy script examples to your clipboard with:
+To get started, run:
+
+<b>Get-DCHelp</b>
+
+Explore and copy script examples to your clipboard with:
 
 <b>Copy-DCExample</b>
 
