@@ -8,7 +8,8 @@ Author: Daniel Chronlund
 
 <h2>Introduction</h2>
 
-This PowerShell module contains a collection of tools for Microsoft 365 security fans, Microsoft Graph functions, Azure AD advanced management, Conditional Access automation, zero trust implementation tools, attack- and defense scenarios, etc.
+This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero 
+trust strategies, attack and defense scenarios, etc.
 
 ---------------------------------------------------
 

@@ -16,8 +16,6 @@ Version: 1.0.2
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
-Feel free to use these tools in your own work.
-
 The home of this module: https://github.com/DanielChronlund/DCToolbox
 
 Please follow me on my blog https://danielchronlund.com, on LinkedIn and on Twitter!
