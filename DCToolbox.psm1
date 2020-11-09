@@ -1,38 +1,34 @@
-# https://github.com/DanielChronlund/DCToolbox
-
-
-
 function Get-DCHelp {
     $HelpText = @'
 
-      ___   ___ _____         _ _             
-     |   \ / __|_   _|__  ___| | |__  _____ __
-     | |) | (__  | |/ _ \/ _ \ | '_ \/ _ \ \ /
-     |___/ \___| |_|\___/\___/_|_.__/\___/_\_\
-                                                  
--- A PowerShell Toolbox for Microsoft 365 Security Fans --
+ ___   ___ _____         _ _             
+|   \ / __|_   _|__  ___| | |__  _____ __
+| |) | (__  | |/ _ \/ _ \ | '_ \/ _ \ \ /
+|___/ \___| |_|\___/\___/_|_.__/\___/_\_\
+                                            
+A PowerShell Toolbox for Microsoft 365 security fans.
 
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0
+Version: 1.0.0
 
-This PowerShell module contains a collection of tools for Microsoft 365, Microsoft Graph, Azure AD security, Conditional Access, Zero Trust strategies, attack and defense, etc.
+This PowerShell module contains a collection of tools for work around Microsoft 365 security, Microsoft Graph, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
-Feel free to use these tools in your own work. You are also free to modify them to suit your needs.
+Feel free to use these tools in your own work.
 
-The home for this module is: https://github.com/DanielChronlund/DCToolbox
+The home of this module: https://github.com/DanielChronlund/DCToolbox
 
-Please follow me on my blog https://danielchronlund.com, on LinkedIn and on Twitter:
+Please follow me on my blog https://danielchronlund.com, on LinkedIn and on Twitter!
 @DanielChronlund
 
-To get started, explore and copy the examples to your clipboard with:
+To get started, explore and copy script examples to your clipboard with:
+
+Copy-DCExample
 
 '@
 
-    Write-Host -ForegroundColor "Cyan" $HelpText
-    Write-Host -ForegroundColor "Yellow" "Copy-DCExample"
-    Write-Host ""
+    Write-Host -ForegroundColor "Yellow" $HelpText
 }
 
 
@@ -90,7 +86,80 @@ function Copy-DCExample {
 		
 		# Menu choices.
 		switch ($MenuChoice) {
-			1 {
+            1 {
+				$Snippet = @'
+# *** Connect Examples ***
+
+# Connect to Microsoft Graph with delegated credentials.
+$ClientID = ''
+$ClientSecret = ''
+
+$AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+
+
+# Connect to Microsoft Graph with application credentials.
+$TenantName = 'example.onmicrosoft.com'
+$ClientID = ''
+$ClientSecret = ''
+
+$AccessToken = Connect-DCMsGraphAsApplication -TenantName $TenantName -ClientID $ClientID -ClientSecret $ClientSecret
+
+
+# *** Microsoft Graph Query Examples ***
+
+# GET data from Microsoft Graph.
+$GraphUri = 'https://graph.microsoft.com/v1.0/users'
+Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+
+
+# POST changes to Microsoft Graph.
+$GraphUri = 'https://graph.microsoft.com/v1.0/users'
+
+$GraphBody = @"
+X
+"@
+
+Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody $GraphBody
+
+
+# PUT changes to Microsoft Graph.
+$GraphUri = 'https://graph.microsoft.com/v1.0/users'
+
+$GraphBody = @"
+X
+"@
+
+Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'PUT' -GraphUri $GraphUri -GraphBody $GraphBody
+
+
+# PATCH changes to Microsoft Graph.
+$GraphUri = 'https://graph.microsoft.com/v1.0/users'
+
+$GraphBody = @"
+X
+"@
+
+Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'PATCH' -GraphUri $GraphUri -GraphBody $GraphBody
+
+
+# DELETE data from Microsoft Graph.
+$GraphUri = 'https://graph.microsoft.com/v1.0/users'
+Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+
+
+<#
+    Filter examples:
+
+    /users?$filter=startswith(givenName,'J')
+
+    /users?$filter=givenName eq 'Test'
+#>
+
+'@
+
+                Set-Clipboard $Snippet
+            }
+			2 {
 				$Snippet = @'
 $ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'
 $ClientSecret = 'j[BQNSi2dSWj4od92ritl_DHJvl1sG.Y/'
@@ -105,7 +174,7 @@ Install-DCConditionalAccessPolicyBaseline -ClientID $ClientID -ClientSecret $Cli
 
 				Set-Clipboard $Snippet
 			}
-			2 {
+			3 {
 				$Snippet = @'
 $ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'
 $ClientSecret = 'j[BQNSi2dSWj4od92ritl_DHJvl1sG.Y/'
@@ -136,7 +205,7 @@ X
 	
 
 	# Create example menu.
-	$Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Install-DCConditionalAccessPolicyBaseline", "Export-DCConditionalAccessAssignments"
+	$Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Install-DCConditionalAccessPolicyBaseline", "Export-DCConditionalAccessAssignments"
 	
 
 	# Handle menu choice.
@@ -1391,13 +1460,3 @@ function Export-DCConditionalAccessAssignments {
 
     # ----- [End] -----
 }
-
-
-
-Export-ModuleMember Get-DCHelp,
-Copy-DCExample,
-Connect-DCMsGraphAsDelegated,
-Connect-DCMsGraphAsApplication,
-Invoke-DCMsGraphQuery,
-Install-DCConditionalAccessPolicyBaseline,
-Export-DCConditionalAccessAssignments
