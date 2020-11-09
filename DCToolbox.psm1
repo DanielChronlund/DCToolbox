@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.3
+Version: 1.0.4
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -1313,17 +1313,22 @@ function Export-DCConditionalAccessAssignments {
             }
         }
 
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersUserPrincipalName" -Value $excludeUsersUserPrincipalName
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersId" -Value $Policy.conditions.users.exludeUsers
+        if ($Policy.conditions.users.excludeUsers -ne "All" -and $Policy.conditions.users.excludeUsers -ne "GuestsOrExternalUsers") {
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersUserPrincipalName" -Value $excludeUsersUserPrincipalName
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersId" -Value $Policy.conditions.users.exludeUsers
+        } else {
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersUserPrincipalName" -Value $Policy.conditions.users.exludeUsers
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersId" -Value $Policy.conditions.users.exludeUsers
+        }
 
         $CustomObject
     }
 
 
     # Fetch include group members from Azure AD:
-    $IncludeGroupMembers = @()
+    $IncludeGroupMembersFromAd = @()
     if ($IncludeGroupMembers) {
-        $IncludeGroupMembers = foreach ($Group in ($CAPolicies.includeGroupsId | Select-Object -Unique)) {
+        $IncludeGroupMembersFromAd = foreach ($Group in ($CAPolicies.includeGroupsId | Select-Object -Unique)) {
             Write-Verbose -Verbose -Message "Getting include group members for policy $($Policy.displayName)..."
 
             $GraphUri = "https://graph.microsoft.com/v1.0/groups/$Group"
@@ -1341,9 +1346,9 @@ function Export-DCConditionalAccessAssignments {
 
 
     # Fetch exclude group members from Azure AD:
-    $ExcludeGroupMembers = @()
+    $ExcludeGroupMembersFromAd = @()
     if ($IncludeGroupMembers) {
-        $ExcludeGroupMembers = foreach ($Group in ($CAPolicies.excludeGroupsId | Select-Object -Unique)) {
+        $ExcludeGroupMembersFromAd = foreach ($Group in ($CAPolicies.excludeGroupsId | Select-Object -Unique)) {
             Write-Verbose -Verbose -Message "Getting exclude group members for policy $($Policy.displayName)..."
 
             $GraphUri = "https://graph.microsoft.com/v1.0/groups/$Group"
@@ -1390,7 +1395,7 @@ function Export-DCConditionalAccessAssignments {
 
         if ($IncludeGroupMembers) {
             [string]$includeUsers += foreach ($Group in $Policy.includeGroupsDisplayName) {
-                [string](($includeGroupMembers | Where-Object { $_.Group -eq $Group }).Members | Sort-Object) -replace " ", "`r`n"
+                [string](($includeGroupMembersFromAd | Where-Object { $_.Group -eq $Group }).Members | Sort-Object) -replace " ", "`r`n"
             }
         }
 
@@ -1423,7 +1428,7 @@ function Export-DCConditionalAccessAssignments {
 
         if ($IncludeGroupMembers) {
             [string]$excludeUsers += foreach ($Group in $Policy.excludeGroupsDisplayName) {
-                [string](($ExcludeGroupMembers | Where-Object { $_.Group -eq $Group }).Members | Sort-Object) -replace " ", "`r`n"
+                [string](($ExcludeGroupMembersFromAd | Where-Object { $_.Group -eq $Group }).Members | Sort-Object) -replace " ", "`r`n"
             }
         }
 
