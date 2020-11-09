@@ -15,17 +15,17 @@ trust strategies, attack and defense scenarios, etc.
 
 <h2>Get Started</h2>
 
-First, install the module from the PowerShell Gallery by running:
+Install the module from the PowerShell Gallery by running:
 
 <b>Install-Module DCToolbox</b>
 
-If you already have it, update to the latest version:
+If you already installed it, update to the latest version by running:
 
 <b>Update-Module DCToolbox</b>
 
 PowerShell Gallery package link: https://www.powershellgallery.com/packages/DCToolbox
 
-To get started, run:
+When you have installed it, to get started, run:
 
 <b>Get-DCHelp</b>
 

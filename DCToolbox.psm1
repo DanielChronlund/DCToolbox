@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.2
+Version: 1.0.3
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -195,13 +195,13 @@ X
 				Set-Clipboard $Snippet
 			}
 			0 {
-				break 
+				exit 
    			}
 		}
 
-		Write-Host -ForegroundColor "Yellow" ""
-		Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
-		Write-Host -ForegroundColor "Yellow" ""
+        Write-Host -ForegroundColor "Yellow" ""
+        Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+        Write-Host -ForegroundColor "Yellow" ""
 	}
 	
 
