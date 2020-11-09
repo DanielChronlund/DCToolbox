@@ -11,7 +11,7 @@ A PowerShell Toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.0
+Version: 1.0.1
 
 This PowerShell module contains a collection of tools for work around Microsoft 365 security, Microsoft Graph, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 

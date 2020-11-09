@@ -18,7 +18,7 @@ First, install the module from the PowerShell Gallery by running:
 
 <b>Install-Module DCToolbox</b>
 
-If you already have it, update to the latestversion:
+If you already have it, update to the latest version:
 
 <b>Update-Module DCToolbox</b>
 
