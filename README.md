@@ -49,6 +49,14 @@ Connect to Microsoft Graph with application credentials.
 
 Run a Microsoft Graph query.
 
+<h3>Get-DCPublicIp</h3>
+
+Get current public IP address information. You can use the -UseTorHttpProxy to route traffic through a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
+
+<h3>Start-DCTorHttpProxy</h3>
+
+Start a Tor network HTTP proxy that can be used for anonymization of HTTP traffic in PowerShell. Requires proxy support in the PowerShell CMDlet you want to anonymise. Many of the tools included in DCToolbox supports this.
+
 <h3>Install-DCConditionalAccessPolicyBaseline</h3>
 
 Let you install a complete Conditional Access policy design from a CSV file.

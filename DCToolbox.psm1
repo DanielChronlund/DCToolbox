@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.4
+Version: 1.0.5
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -523,6 +523,151 @@ function Invoke-DCMsGraphQuery {
     }
     else {
         Write-Error "No Access Token"
+    }
+}
+
+
+
+function Get-DCPublicIp {
+    <#
+        .NAME
+            Get-DCPublicIp
+            
+        .SYNOPSIS
+            Get current public IP address information.
+
+        .DESCRIPTION
+            Get the current public IP address and related information. The ipinfo.io API is used to fetch the information. You can use the -UseTorHttpProxy to route traffic through a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
+            
+        .PARAMETERS
+            -UseTorHttpProxy
+                Route traffic through a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
+
+            <CommonParameters>
+                This cmdlet supports the common parameters: Verbose, Debug,
+                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
+                OutBuffer, PipelineVariable, and OutVariable. For more information, see
+                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+            
+        .INPUTS
+            None
+
+        .OUTPUTS
+            Public IP address information.
+
+        .NOTES
+            Author:         Daniel Chronlund
+        
+        .EXAMPLE
+            Get-DCPublicIp
+
+            (Get-DCPublicIp).ip
+
+            Write-Host "$((Get-DCPublicIp).city) $((Get-DCPublicIp).country)"
+    #>
+
+
+	param (
+		[parameter(Mandatory = $false)]
+		[switch]$UseTorHttpProxy
+	)
+
+	if ($UseTorHttpProxy) {
+		Invoke-RestMethod -Proxy "http://127.0.0.1:9150" -Method "Get" -Uri "https://ipinfo.io/json"
+	}
+    else {
+		Invoke-RestMethod -Method "Get" -Uri "https://ipinfo.io/json"
+	}
+}
+
+
+
+function Start-DCTorHttpProxy {
+    <#
+        .NAME
+            Start-DCTorHttpProxy
+            
+        .SYNOPSIS
+            Start a Tor network HTTP proxy for anonymous HTTP calls via PowerShell.
+
+        .DESCRIPTION
+            Start a Tor network HTTP proxy that can be used for anonymization of HTTP traffic in PowerShell. Requires proxy support in the PowerShell CMDlet you want to anonymise. Many of the tools included in DCToolbox supports this.
+
+            Start the proxy:
+            Start-DCTorHttpProxy
+
+            The proxy will launch in a new PowerShell window that you can minimize.
+            
+            You can test it out (and find your currentn Tor IP address and location) with:
+            Get-DCPublicIp -UseTorHttpProxy
+
+            For other CMDlets, use the following proxy configuration:
+            127.0.0.1:9150
+
+            Note: This CMDlet expects the Tor browser to be installed under C:\Temp\Tor Browser. You can change the path with -TorBrowserPath.
+
+            Download Tor browser:
+            https://www.torproject.org/download/
+            
+        .PARAMETERS
+            -TorBrowserPath <String>
+                The path to the Tor browser directory. Default is 'C:\Temp\Tor Browser'.
+
+            <CommonParameters>
+                This cmdlet supports the common parameters: Verbose, Debug,
+                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
+                OutBuffer, PipelineVariable, and OutVariable. For more information, see
+                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+            
+        .INPUTS
+            None
+
+        .OUTPUTS
+            None
+
+        .NOTES
+            Author:         Daniel Chronlund
+        
+        .EXAMPLE
+            Start-DCTorHttpProxy
+    #>
+
+
+    param (
+		[parameter(Mandatory = $false)]
+		[string]$TorBrowserPath = 'C:\Temp\Tor Browser'
+	)
+
+
+	# Configuration
+	$torBrowser = $TorBrowserPath
+	$TOR_HOST = "127.0.0.1"
+	$TOR_PORT = 9150
+	$CTRL_PORT = 9151
+
+	# Do not modify these
+	$tor_location = "$torBrowser\Browser\TorBrowser\Tor"
+	$torrc_defaults = "$torBrowser\Browser\TorBrowser\Data\Tor\torrc-defaults"
+	$torrc = "$torBrowser\Browser\TorBrowser\Data\Tor\torrc"
+	$tordata = "$torBrowser\Browser\TorBrowser\Data\Tor"
+	$geoIP = "$torBrowser\Browser\TorBrowser\Data\Tor\geoip"
+	$geoIPv6 = "$torBrowser\Browser\TorBrowser\Data\Tor\geoip6"
+	$torExe = "$tor_location\tor.exe"
+	$controllerProcess = $PID
+
+	function Get-OneToLastItem {
+		param ($arr) return $arr[$arr.Length - 2] 
+	}
+
+	$Command = "Write-Host '*** Running Tor HTTPS Proxy ***' -ForegroundColor Green; Write-Host ''; Write-Host 'Press [Ctrl+C] to stop Tor service.' -ForegroundColor Gray; Write-Host ''; & '$torExe' --defaults-torrc '$torrc_defaults' -f '$torrc' DataDirectory '$tordata' GeoIPFile '$geoIP' GeoIPv6File '$geoIPv6' +__ControlPort $CTRL_PORT +__HTTPTunnelPort '${TOR_HOST}:$TOR_PORT IPv6Traffic PreferIPv6 KeepAliveIsolateSOCKSAuth' __OwningControllerProcess $controllerProcess | more"
+
+    try {
+        Start-Process "`"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`"" "-NoExit -Command $Command"
+
+        Write-Host -ForegroundColor "Yellow" "Running Tor HTTPS Proxy on $TOR_HOST`:$TOR_PORT"
+        Write-Host ""
+    } catch {
+        Write-Error -Message $PSItem.Exception.Message
     }
 }
 
