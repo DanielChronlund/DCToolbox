@@ -59,7 +59,7 @@ Start a Tor network HTTP proxy that can be used for anonymization of HTTP traffi
 
 <h3>Install-DCConditionalAccessPolicyBaseline</h3>
 
-Let you install a complete Conditional Access policy design from a CSV file.
+Let you install a complete Conditional Access policy design baseline.
 
 <h3>Export-DCConditionalAccessAssignments</h3>
 
