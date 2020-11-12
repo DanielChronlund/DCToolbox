@@ -514,10 +514,14 @@ function Invoke-DCMsGraphQuery {
                 $QueryResults += $Results
             }
 
-            $uri = $Results.'@odata.nextlink'
+       		$QueryProgress = $QueryResults.Count
+        	Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Status "Progress: $QueryProgress objects processed." -PercentComplete -1
+            
+			$uri = $Results.'@odata.nextlink'
         } until (!($uri))
 
-
+		Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Completed
+		
         # Return the result.
         $QueryResults
     }
