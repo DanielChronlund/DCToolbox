@@ -49,6 +49,10 @@ Connect to Microsoft Graph with application credentials.
 
 Run a Microsoft Graph query.
 
+<h3>Enable-DCAzureADPIMRole</h3>
+
+Activate an Azure AD Privileged Identity Management (PIM) role with PowerShell.
+
 <h3>Get-DCPublicIp</h3>
 
 Get current public IP address information. You can use the -UseTorHttpProxy to route traffic through a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
