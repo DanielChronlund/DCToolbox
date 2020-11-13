@@ -527,7 +527,12 @@ function Invoke-DCMsGraphQuery {
 		Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Completed
 		
         # Return the result.
+		if ($QueryResults.Count -gt 25) {
+        	Write-Host "Query results contains more than 25 objects. Stored in Array:`$QueryResults"
+    	}
+    	else {
         $QueryResults
+    	}
     }
     else {
         Write-Error "No Access Token"
