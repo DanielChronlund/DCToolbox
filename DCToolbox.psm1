@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.5
+Version: 1.0.6
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -36,59 +36,59 @@ To get started, explore and copy script examples to your clipboard with:
 
 function Copy-DCExample {
     function CreateMenu {
-		param
-		(
-			[parameter(Mandatory = $true)]
-			[string]$MenuTitle,
-			[parameter(Mandatory = $true)]
-			[string[]]$MenuChoices
-		)
+        param
+        (
+            [parameter(Mandatory = $true)]
+            [string]$MenuTitle,
+            [parameter(Mandatory = $true)]
+            [string[]]$MenuChoices
+        )
 		
-		# Create a counter.
-		$Counter = 1
+        # Create a counter.
+        $Counter = 1
 		
-		# Write menu title.
-		Write-Host -ForegroundColor "Yellow" "*** $MenuTitle ***"
-		Write-Host -ForegroundColor "Yellow" ""
+        # Write menu title.
+        Write-Host -ForegroundColor "Yellow" "*** $MenuTitle ***"
+        Write-Host -ForegroundColor "Yellow" ""
 		
-		# Generate the menu choices.
-		foreach ($MenuChoice in $MenuChoices) {
-			Write-Host -ForegroundColor "Yellow" "[$Counter] $MenuChoice"
+        # Generate the menu choices.
+        foreach ($MenuChoice in $MenuChoices) {
+            Write-Host -ForegroundColor "Yellow" "[$Counter] $MenuChoice"
 			
-			# Add to counter.
-			$Counter = $Counter + 1
-		}
+            # Add to counter.
+            $Counter = $Counter + 1
+        }
 		
-		# Write empty line.
-		Write-Host -ForegroundColor "Yellow" ""
+        # Write empty line.
+        Write-Host -ForegroundColor "Yellow" ""
 		
-		# Write exit line.
-		Write-Host -ForegroundColor "Yellow" "[0] Quit"
+        # Write exit line.
+        Write-Host -ForegroundColor "Yellow" "[0] Quit"
 		
-		# Write empty line.
-		Write-Host -ForegroundColor "Yellow" ""
+        # Write empty line.
+        Write-Host -ForegroundColor "Yellow" ""
 		
-		# Prompt user for input.
-		$prompt = "Choice"
-		Read-Host $prompt
+        # Prompt user for input.
+        $prompt = "Choice"
+        Read-Host $prompt
 		
-		# Return users choice.
-		return $prompt
-	}
+        # Return users choice.
+        return $prompt
+    }
 	
 	
-	# Function for handling the menu choice.
-	function HandleMenuChoice {
-		param
-		(
-			[parameter(Mandatory = $true)]
-			[string[]]$MenuChoice
-		)
+    # Function for handling the menu choice.
+    function HandleMenuChoice {
+        param
+        (
+            [parameter(Mandatory = $true)]
+            [string[]]$MenuChoice
+        )
 		
-		# Menu choices.
-		switch ($MenuChoice) {
+        # Menu choices.
+        switch ($MenuChoice) {
             1 {
-				$Snippet = @'
+                $Snippet = @'
 # *** Connect Examples ***
 
 # Connect to Microsoft Graph with delegated credentials.
@@ -160,8 +160,8 @@ Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $Gr
 
                 Set-Clipboard $Snippet
             }
-			2 {
-				$Snippet = @'
+            2 {
+                $Snippet = @'
 $ClientID = ''
 $ClientSecret = ''
 $ExcludeGroup = 'Excluded from CA'
@@ -173,10 +173,10 @@ Install-DCConditionalAccessPolicyBaseline -ClientID $ClientID -ClientSecret $Cli
 
 '@
 
-				Set-Clipboard $Snippet
-			}
-			3 {
-				$Snippet = @'
+                Set-Clipboard $Snippet
+            }
+            3 {
+                $Snippet = @'
 $ClientID = ''
 $ClientSecret = ''
 
@@ -184,33 +184,33 @@ Export-DCConditionalAccessAssignments -ClientID $ClientID -ClientSecret $ClientS
 
 '@
 
-				Set-Clipboard $Snippet
-			}
-			100 {
-				$Snippet = @'
+                Set-Clipboard $Snippet
+            }
+            100 {
+                $Snippet = @'
 X
 
 '@
 
-				Set-Clipboard $Snippet
-			}
-			0 {
-				exit 
-   			}
-		}
+                Set-Clipboard $Snippet
+            }
+            0 {
+                break 
+            }
+        }
 
         Write-Host -ForegroundColor "Yellow" ""
         Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
         Write-Host -ForegroundColor "Yellow" ""
-	}
+    }
 	
 
-	# Create example menu.
-	$Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Deploy Conditional Access (Install-DCConditionalAccessPolicyBaseline)", "Export Conditional Access Assignments (Export-DCConditionalAccessAssignments)"
+    # Create example menu.
+    $Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Deploy Conditional Access (Install-DCConditionalAccessPolicyBaseline)", "Export Conditional Access Assignments (Export-DCConditionalAccessAssignments)"
 	
 
-	# Handle menu choice.
-	HandleMenuChoice -MenuChoice $Choice
+    # Handle menu choice.
+    HandleMenuChoice -MenuChoice $Choice
 }
 
 
@@ -288,7 +288,9 @@ function Connect-DCMsGraphAsDelegated {
         $Web = New-Object -TypeName System.Windows.Forms.WebBrowser -Property @{Width = 420; Height = 600; Url = ($Url -f ($Scope -join "%20")) }
         $DocComp = {
             $Global:uri = $Web.Url.AbsoluteUri        
-            if ($Global:uri -match "error=[^&]*|code=[^&]*") { $Form.Close() }
+            if ($Global:uri -match "error=[^&]*|code=[^&]*") {
+                $Form.Close() 
+            }
         }
 
         $Web.ScriptErrorsSuppressed = $true
@@ -312,7 +314,7 @@ function Connect-DCMsGraphAsDelegated {
 
     # Extract Access token from the returned URI.
     $Regex = '(?<=code=)(.*)(?=&)'
-    $AuthCode = ($Uri | Select-string -pattern $Regex).Matches[0].Value
+    $AuthCode = ($Uri | Select-String -Pattern $Regex).Matches[0].Value
 
 
     # Get Access Token.
@@ -489,12 +491,14 @@ function Invoke-DCMsGraphQuery {
                 try {
                     if ($GraphMethod -eq 'GET') {
                         $Results = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json"
-                    } else {
+                    }
+                    else {
                         $Results = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json" -Body $GraphBody
                     }
 
                     $StatusCode = $Results.StatusCode
-                } catch {
+                }
+                catch {
                     $StatusCode = $_.Exception.Response.StatusCode.value__
 
                     if ($StatusCode -eq 429) {
@@ -523,6 +527,176 @@ function Invoke-DCMsGraphQuery {
     }
     else {
         Write-Error "No Access Token"
+    }
+}
+
+
+
+function Enable-DCAzureADPIMRole {
+    <#
+        .NAME
+            Enable-DCAzureADPIMRole
+            
+        .SYNOPSIS
+            Activate an Azure AD Privileged Identity Management (PIM) role with PowerShell.
+
+        .DESCRIPTION
+            Uses the Azure AD Preview module and the MSAL module to activate a user selected Azure AD role in Azure AD Privileged Identity Management (PIM) with PowerShell. It uses MSAL to force an MFA prompt, even if not required. This is needed because PIM role activation often requires MFA approval.
+
+            During activation, the user will be primpted to specify a reason for the activation.
+            
+        .PARAMETERS
+            <CommonParameters>
+                This cmdlet supports the common parameters: Verbose, Debug,
+                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
+                OutBuffer, PipelineVariable, and OutVariable. For more information, see
+                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+            
+        .INPUTS
+            None
+
+        .OUTPUTS
+            None
+
+        .NOTES
+            Author:         Daniel Chronlund
+        
+        .EXAMPLE
+            Enable-DCAzureADPIMRole
+    #>
+
+
+    # Check if the Azure AD Preview module is installed.
+    if (Get-Module -ListAvailable -Name "AzureADPreview") {
+        # Do nothing.
+    } 
+    else {
+        Write-Error -Exception "The Azure AD Preview PowerShell module is not installed. Please, run 'Install-Module AzureADPreview' as an admin and try again." -ErrorAction Stop
+    }
+
+
+    # Check if the MSAL module is installed.
+    if (Get-Module -ListAvailable -Name "msal.ps") {
+        # Do nothing.
+    }
+    else {
+        Write-Error -Exception "The MSAL module is not installed. Please, run 'Install-Package msal.ps' as an admin and try again." -ErrorAction Stop
+    }
+
+
+    # Make sure AzureADPreview is the loaded PowerShell module even if AzureAD is installed.
+    Remove-Module AzureAD -ErrorAction SilentlyContinue
+    Import-Module AzureADPreview
+
+
+    # Function to check if there already is an active Azure AD session.
+    function AzureAdConnected {
+        try {
+            $Var = Get-AzureADTenantDetail 
+        } 
+        catch [Microsoft.Open.Azure.AD.CommonLibrary.AadNeedAuthenticationException] {
+            $false
+        }
+    }
+
+
+    # Check if already connected to Azure AD.
+    if (!(AzureAdConnected)) {
+        # Try to force MFA challenge (since it is often required for PIM role activation).
+
+        Write-Verbose -Verbose -Message 'Connecting to Azure AD...'
+
+        # Get token for MS Graph by prompting for MFA.
+        $MsResponse = Get-MsalToken -Scopes @("https://graph.microsoft.com/.default") -ClientId "1b730954-1685-4b74-9bfd-dac224a7b894" -RedirectUri "urn:ietf:wg:oauth:2.0:oob" -Authority "https://login.microsoftonline.com/common" -Interactive -ExtraQueryParameters @{claims = '{"access_token" : {"amr": { "values": ["mfa"] }}}' }
+
+        # Get token for AAD Graph.
+        $AadResponse = Get-MsalToken -Scopes @("https://graph.windows.net/.default") -ClientId "1b730954-1685-4b74-9bfd-dac224a7b894" -RedirectUri "urn:ietf:wg:oauth:2.0:oob" -Authority "https://login.microsoftonline.com/common"
+
+        $AccountId = $AadResponse.Account.HomeAccountId.ObjectId
+        $TenantId = $AadResponse.Account.HomeAccountId.TenantId
+
+        Connect-AzureAD -AadAccessToken $AadResponse.AccessToken -MsAccessToken $MsResponse.AccessToken -AccountId $AccountId -TenantId:  $TenantId | Out-Null
+    }
+
+
+    # Fetch session information.
+    $AzureADCurrentSessionInfo = Get-AzureADCurrentSessionInfo
+
+    # Fetch current user object ID.
+    $CurrentAccountId = $AzureADCurrentSessionInfo.Account.Id
+
+    # Fetch all Azure AD role definitions.
+    $AzureADMSPrivilegedRoleDefinition = Get-AzureADMSPrivilegedRoleDefinition -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId
+
+    # Fetch all Azure AD role settings.
+    $AzureADMSPrivilegedRoleSetting = Get-AzureADMSPrivilegedRoleSetting -ProviderId 'aadRoles' -Filter "ResourceId eq '$($AzureADCurrentSessionInfo.TenantId)'"
+
+    # Fetch all PIM role assignments for the current user.
+    $AzureADMSPrivilegedRoleAssignment = Get-AzureADMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $AzureADCurrentSessionInfo.TenantId -Filter "subjectId eq '$CurrentAccountId'" | Where-Object { $_.AssignmentState -eq 'Eligible' }
+
+
+    # Format the fetched information.
+    $CurrentAccountRoles = foreach ($RoleAssignment in ($AzureADMSPrivilegedRoleAssignment | Select-Object -Unique)) {
+        $CustomObject = New-Object -TypeName psobject
+        $CustomObject | Add-Member -MemberType NoteProperty -Name 'RoleDefinitionId' -Value $RoleAssignment.RoleDefinitionId
+        $CustomObject | Add-Member -MemberType NoteProperty -Name 'DisplayName' -Value ($AzureADMSPrivilegedRoleDefinition | Where-Object { $_.Id -eq $RoleAssignment.RoleDefinitionId } ).DisplayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name 'AssignmentState' -Value $RoleAssignment.AssignmentState
+        $CustomObject | Add-Member -MemberType NoteProperty -Name 'maximumGrantPeriodInMinutes' -Value ((($AzureADMSPrivilegedRoleSetting | Where-Object { $_.RoleDefinitionId -eq $RoleAssignment.RoleDefinitionId }).UserMemberSettings | Where-Object { $_.RuleIdentifier -eq 'ExpirationRule' }).Setting | ConvertFrom-Json).maximumGrantPeriodInMinutes
+        $CustomObject | Add-Member -MemberType NoteProperty -Name 'StartDateTime' -Value $RoleAssignment.StartDateTime
+        $CustomObject | Add-Member -MemberType NoteProperty -Name 'EndDateTime' -Value $RoleAssignment.EndDateTime
+        $CustomObject
+    }
+
+
+    # Create a menu and prompt the user for role selection.
+
+    # Create a counter.
+    $Counter = 1
+    
+    # Write menu title.
+    Write-Host -ForegroundColor "Yellow" ""
+    Write-Host -ForegroundColor "Yellow" "*** Activate PIM Role ***"
+    Write-Host -ForegroundColor "Yellow" ""
+    
+    # Generate the menu choices.
+    foreach ($DisplayName in $CurrentAccountRoles.DisplayName) {
+        Write-Host -ForegroundColor "Yellow" "[$Counter] $DisplayName"
+        
+        # Add to counter.
+        $Counter = $Counter + 1
+    }
+    
+    # Write empty line.
+    Write-Host -ForegroundColor "Yellow" ""
+    
+    # Prompt user for input.
+    $Prompt = "Choice"
+    $Answer = Read-Host $Prompt
+
+    $RoleToActivate = $CurrentAccountRoles[$Answer - 1]
+
+
+    # Create activation schedule based on the current role limit.
+    $Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
+    $Schedule.Type = "Once"
+    $Schedule.StartDateTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+    $Schedule.endDateTime = ((Get-Date).AddMinutes($RoleToActivate.maximumGrantPeriodInMinutes)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+
+
+    # Check if PIM-role is already activated.
+    if ($RoleToActivate.AssignmentState -eq 'Active') {
+        Write-Warning -Message "Azure AD Role '$($RoleToActivate.DisplayName)' already activated!"
+    }
+    else {
+        # Prompt user for reason.
+        $Prompt = "Reason"
+        $Reason = Read-Host $Prompt
+
+        # Activate PIM role.
+        Write-Verbose -Verbose -Message 'Activating PIM role...'
+        Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId -RoleDefinitionId $RoleToActivate.RoleDefinitionId -SubjectId $CurrentAccountId -Type 'UserAdd' -AssignmentState 'Active' -Schedule $Schedule -Reason $Reason | Out-Null
+
+        Write-Verbose -Verbose -Message "$($RoleToActivate.DisplayName) has been activated until $($Schedule.endDateTime)!"
     }
 }
 
@@ -567,17 +741,17 @@ function Get-DCPublicIp {
     #>
 
 
-	param (
-		[parameter(Mandatory = $false)]
-		[switch]$UseTorHttpProxy
-	)
+    param (
+        [parameter(Mandatory = $false)]
+        [switch]$UseTorHttpProxy
+    )
 
-	if ($UseTorHttpProxy) {
-		Invoke-RestMethod -Proxy "http://127.0.0.1:9150" -Method "Get" -Uri "https://ipinfo.io/json"
-	}
+    if ($UseTorHttpProxy) {
+        Invoke-RestMethod -Proxy "http://127.0.0.1:9150" -Method "Get" -Uri "https://ipinfo.io/json"
+    }
     else {
-		Invoke-RestMethod -Method "Get" -Uri "https://ipinfo.io/json"
-	}
+        Invoke-RestMethod -Method "Get" -Uri "https://ipinfo.io/json"
+    }
 }
 
 
@@ -634,39 +808,40 @@ function Start-DCTorHttpProxy {
 
 
     param (
-		[parameter(Mandatory = $false)]
-		[string]$TorBrowserPath = 'C:\Temp\Tor Browser'
-	)
+        [parameter(Mandatory = $false)]
+        [string]$TorBrowserPath = 'C:\Temp\Tor Browser'
+    )
 
 
-	# Configuration
-	$torBrowser = $TorBrowserPath
-	$TOR_HOST = "127.0.0.1"
-	$TOR_PORT = 9150
-	$CTRL_PORT = 9151
+    # Configuration
+    $torBrowser = $TorBrowserPath
+    $TOR_HOST = "127.0.0.1"
+    $TOR_PORT = 9150
+    $CTRL_PORT = 9151
 
-	# Do not modify these
-	$tor_location = "$torBrowser\Browser\TorBrowser\Tor"
-	$torrc_defaults = "$torBrowser\Browser\TorBrowser\Data\Tor\torrc-defaults"
-	$torrc = "$torBrowser\Browser\TorBrowser\Data\Tor\torrc"
-	$tordata = "$torBrowser\Browser\TorBrowser\Data\Tor"
-	$geoIP = "$torBrowser\Browser\TorBrowser\Data\Tor\geoip"
-	$geoIPv6 = "$torBrowser\Browser\TorBrowser\Data\Tor\geoip6"
-	$torExe = "$tor_location\tor.exe"
-	$controllerProcess = $PID
+    # Do not modify these
+    $tor_location = "$torBrowser\Browser\TorBrowser\Tor"
+    $torrc_defaults = "$torBrowser\Browser\TorBrowser\Data\Tor\torrc-defaults"
+    $torrc = "$torBrowser\Browser\TorBrowser\Data\Tor\torrc"
+    $tordata = "$torBrowser\Browser\TorBrowser\Data\Tor"
+    $geoIP = "$torBrowser\Browser\TorBrowser\Data\Tor\geoip"
+    $geoIPv6 = "$torBrowser\Browser\TorBrowser\Data\Tor\geoip6"
+    $torExe = "$tor_location\tor.exe"
+    $controllerProcess = $PID
 
-	function Get-OneToLastItem {
-		param ($arr) return $arr[$arr.Length - 2] 
-	}
+    function Get-OneToLastItem {
+        param ($arr) return $arr[$arr.Length - 2] 
+    }
 
-	$Command = "Write-Host '*** Running Tor HTTPS Proxy ***' -ForegroundColor Green; Write-Host ''; Write-Host 'Press [Ctrl+C] to stop Tor service.' -ForegroundColor Gray; Write-Host ''; & '$torExe' --defaults-torrc '$torrc_defaults' -f '$torrc' DataDirectory '$tordata' GeoIPFile '$geoIP' GeoIPv6File '$geoIPv6' +__ControlPort $CTRL_PORT +__HTTPTunnelPort '${TOR_HOST}:$TOR_PORT IPv6Traffic PreferIPv6 KeepAliveIsolateSOCKSAuth' __OwningControllerProcess $controllerProcess | more"
+    $Command = "Write-Host '*** Running Tor HTTPS Proxy ***' -ForegroundColor Green; Write-Host ''; Write-Host 'Press [Ctrl+C] to stop Tor service.' -ForegroundColor Gray; Write-Host ''; & '$torExe' --defaults-torrc '$torrc_defaults' -f '$torrc' DataDirectory '$tordata' GeoIPFile '$geoIP' GeoIPv6File '$geoIPv6' +__ControlPort $CTRL_PORT +__HTTPTunnelPort '${TOR_HOST}:$TOR_PORT IPv6Traffic PreferIPv6 KeepAliveIsolateSOCKSAuth' __OwningControllerProcess $controllerProcess | more"
 
     try {
         Start-Process "`"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`"" "-NoExit -Command $Command"
 
         Write-Host -ForegroundColor "Yellow" "Running Tor HTTPS Proxy on $TOR_HOST`:$TOR_PORT"
         Write-Host ""
-    } catch {
+    }
+    catch {
         Write-Error -Message $PSItem.Exception.Message
     }
 }
@@ -837,7 +1012,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "BLOCK - High-Risk Sign-Ins",
     "state": "enabledForReportingButNotEnforced",
@@ -871,7 +1046,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "BLOCK - Countries not Allowed",
     "state": "enabledForReportingButNotEnforced",
@@ -910,7 +1085,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "BLOCK - Explicitly Blocked Cloud Apps",
     "state": "enabledForReportingButNotEnforced",
@@ -941,7 +1116,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "GRANT - Terms of Use",
     "state": "enabledForReportingButNotEnforced",
@@ -972,7 +1147,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "GRANT - Browser Access",
     "state": "enabledForReportingButNotEnforced",
@@ -1006,7 +1181,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "SESSION - Block Unmanaged Browser File Downloads",
     "state": "enabledForReportingButNotEnforced",
@@ -1045,7 +1220,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "GRANT - Mobile Device Access",
     "state": "enabledForReportingButNotEnforced",
@@ -1088,7 +1263,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "GRANT - Windows Device Access",
     "state": "enabledForReportingButNotEnforced",
@@ -1129,7 +1304,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "GRANT - Mac Device Access",
     "state": "enabledForReportingButNotEnforced",
@@ -1169,7 +1344,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "GRANT - Guest Access",
     "state": "enabledForReportingButNotEnforced",
@@ -1196,7 +1371,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "BLOCK - Guest Access",
     "state": "enabledForReportingButNotEnforced",
@@ -1226,7 +1401,7 @@ function Install-DCConditionalAccessPolicyBaseline {
     }
 }
 "@
-, @"
+        , @"
 {
     "displayName": "BLOCK - Service Accounts",
     "state": "enabledForReportingButNotEnforced",
@@ -1279,7 +1454,8 @@ function Install-DCConditionalAccessPolicyBaseline {
         # Create conditional access policy (requires API permission Policy.ReadWrite.ConditionalAccess).
         try {
             Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody $Policy
-        } catch {
+        }
+        catch {
             Write-Error -Message $_.Exception.Message -ErrorAction Continue
         }
     }
@@ -1381,7 +1557,8 @@ function Export-DCConditionalAccessAssignments {
 
     # Check if the Excel module is installed.
     if (Get-Module -ListAvailable -Name "ImportExcel") {
-    } 
+        # Do nothing.
+    }
     else {
         Write-Error -Exception "The Excel PowerShell module is not installed. Please, run 'Install-Module ImportExcel' as an admin and try again." -ErrorAction Stop
     }
@@ -1434,7 +1611,8 @@ function Export-DCConditionalAccessAssignments {
             if ($Object -ne "All" -and $Object -ne "GuestsOrExternalUsers") {
                 $GraphUri = "https://graph.microsoft.com/v1.0/users/$Object"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction "Continue").userPrincipalName
-            } else {
+            }
+            else {
                 $Object
             }
         }
@@ -1442,7 +1620,8 @@ function Export-DCConditionalAccessAssignments {
         if ($Policy.conditions.users.includeUsers -ne "All" -and $Policy.conditions.users.includeUsers -ne "GuestsOrExternalUsers") {
             $CustomObject | Add-Member -MemberType NoteProperty -Name "includeUsersUserPrincipalName" -Value $includeUsersUserPrincipalName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "includeUsersId" -Value $Policy.conditions.users.includeUsers
-        } else {
+        }
+        else {
             $CustomObject | Add-Member -MemberType NoteProperty -Name "includeUsersUserPrincipalName" -Value $Policy.conditions.users.includeUsers
             $CustomObject | Add-Member -MemberType NoteProperty -Name "includeUsersId" -Value $Policy.conditions.users.includeUsers
         }
@@ -1453,7 +1632,8 @@ function Export-DCConditionalAccessAssignments {
             if ($Object -ne "All" -and $Object -ne "GuestsOrExternalUsers") {
                 $GraphUri = "https://graph.microsoft.com/v1.0/users/$Object"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction "Continue").userPrincipalName
-            } else {
+            }
+            else {
                 $Object
             }
         }
@@ -1461,7 +1641,8 @@ function Export-DCConditionalAccessAssignments {
         if ($Policy.conditions.users.excludeUsers -ne "All" -and $Policy.conditions.users.excludeUsers -ne "GuestsOrExternalUsers") {
             $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersUserPrincipalName" -Value $excludeUsersUserPrincipalName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersId" -Value $Policy.conditions.users.exludeUsers
-        } else {
+        }
+        else {
             $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersUserPrincipalName" -Value $Policy.conditions.users.exludeUsers
             $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersId" -Value $Policy.conditions.users.exludeUsers
         }
@@ -1526,7 +1707,7 @@ function Export-DCConditionalAccessAssignments {
         }
 
         if ($includeGroups.Length -gt 1) {
-            $includeGroups = $includeGroups.Substring(0, "$includeGroups".Length-1)
+            $includeGroups = $includeGroups.Substring(0, "$includeGroups".Length - 1)
         }
 
         [string]$includeGroups = [string]$includeGroups -replace "`r`n ", "`r`n"
@@ -1536,7 +1717,9 @@ function Export-DCConditionalAccessAssignments {
 
         # Format include users.
         [string]$includeUsers = $Policy.includeUsersUserPrincipalName -replace " ", "`r`n"
-        if ($includeUsers) { [string]$includeUsers += "`r`n" }
+        if ($includeUsers) {
+            [string]$includeUsers += "`r`n" 
+        }
 
         if ($IncludeGroupMembers) {
             [string]$includeUsers += foreach ($Group in $Policy.includeGroupsDisplayName) {
@@ -1559,7 +1742,7 @@ function Export-DCConditionalAccessAssignments {
         }
 
         if ($excludeGroups.Length -gt 1) {
-            $excludeGroups = $excludeGroups.Substring(0, "$excludeGroups".Length-1)
+            $excludeGroups = $excludeGroups.Substring(0, "$excludeGroups".Length - 1)
         }
 
         [string]$excludeGroups = [string]$excludeGroups -replace "`r`n ", "`r`n"
@@ -1569,7 +1752,9 @@ function Export-DCConditionalAccessAssignments {
 
         # Format exclude users.
         [string]$excludeUsers = $Policy.excludeUsersUserPrincipalName -replace " ", "`r`n"
-        if ($excludeUsers) { [string]$excludeUsers += "`r`n" }
+        if ($excludeUsers) {
+            [string]$excludeUsers += "`r`n" 
+        }
 
         if ($IncludeGroupMembers) {
             [string]$excludeUsers += foreach ($Group in $Policy.excludeGroupsDisplayName) {
