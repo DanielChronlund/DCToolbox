@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.6
+Version: 1.0.7
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -186,6 +186,32 @@ Export-DCConditionalAccessAssignments -ClientID $ClientID -ClientSecret $ClientS
 
                 Set-Clipboard $Snippet
             }
+            4 {
+                $Snippet = @'
+# Activate an Azure AD Privileged Identity Management (PIM) Role.
+Enable-DCAzureADPIMRole
+
+<#
+    User sign-in will popup and the after signing in, the following flow will happen:
+
+    VERBOSE: Connecting to Azure AD...
+
+    *** Activate PIM Role ***
+
+    [1] User Account Administrator
+    [2] Application Administrator
+    [3] Security Administrator
+
+    Choice: 3
+    Reason: Testar lite!
+    VERBOSE: Activating PIM role...
+    VERBOSE: Security Administrator has been activated until 11/13/2020 11:41:01!
+#>
+
+'@
+
+                Set-Clipboard $Snippet
+            }
             100 {
                 $Snippet = @'
 X
@@ -206,7 +232,7 @@ X
 	
 
     # Create example menu.
-    $Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Deploy Conditional Access (Install-DCConditionalAccessPolicyBaseline)", "Export Conditional Access Assignments (Export-DCConditionalAccessAssignments)"
+    $Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Deploy Conditional Access (Install-DCConditionalAccessPolicyBaseline)", "Export Conditional Access Assignments (Export-DCConditionalAccessAssignments)", "Activate an Azure AD Privileged Identity Management (PIM) Role"
 	
 
     # Handle menu choice.
@@ -566,6 +592,10 @@ function Enable-DCAzureADPIMRole {
     #>
 
 
+    # Set Error Action - Possible choices: Stop, SilentlyContinue
+    $ErrorActionPreference = "Stop"
+
+
     # Check if the Azure AD Preview module is installed.
     if (Get-Module -ListAvailable -Name "AzureADPreview") {
         # Do nothing.
@@ -626,7 +656,10 @@ function Enable-DCAzureADPIMRole {
     $CurrentAccountId = $AzureADCurrentSessionInfo.Account.Id
 
     # Fetch all Azure AD role definitions.
-    $AzureADMSPrivilegedRoleDefinition = Get-AzureADMSPrivilegedRoleDefinition -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId
+    $AzureADMSPrivilegedRoleDefinition = Get-AzureADMSPrivilegedRoleDefinition -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId.Guid
+
+    Get-AzureADMSPrivilegedRoleDefinition -ProviderId aadRoles -ResourceId "15d06cbf-5ba6-4055-954d-531141e50e6c"
+
 
     # Fetch all Azure AD role settings.
     $AzureADMSPrivilegedRoleSetting = Get-AzureADMSPrivilegedRoleSetting -ProviderId 'aadRoles' -Filter "ResourceId eq '$($AzureADCurrentSessionInfo.TenantId)'"
