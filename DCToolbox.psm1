@@ -145,7 +145,7 @@ Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'PATCH' -GraphUri $
 
 # DELETE data from Microsoft Graph.
 $GraphUri = 'https://graph.microsoft.com/v1.0/users'
-Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri
 
 
 <#
@@ -501,28 +501,28 @@ function Invoke-DCMsGraphQuery {
 
 
         # Create an empty array to store the result.
-        $QueryResults = @()
+        $QueryRequest = @()
+        $QueryResult = @()
 
 
-        # Invoke REST method and fetch data until there are no pages left.
-        $Results = ""
-        $StatusCode = ""
+        # Run the first query.
+        if ($GraphMethod -eq 'GET') {
+            $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json"
+        } else {
+            $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json" -Body $GraphBody
+        }
+        
 
-        # Invoke REST method and fetch data until there are no pages left.
-        do {
-            $Results = ""
-            $StatusCode = ""
+        $QueryResult += $QueryRequest.value
 
+
+        # Invoke REST methods and fetch data until there are no pages left.
+        while ($QueryRequest.'@odata.nextLink') {
             do {
                 try {
-                    if ($GraphMethod -eq 'GET') {
-                        $Results = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json"
-                    }
-                    else {
-                        $Results = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json" -Body $GraphBody
-                    }
+                    $QueryRequest = Invoke-RestMethod -Uri $QueryRequest.'@odata.nextLink' -Headers $Header -Method $GraphMethod -ContentType "application/json"
 
-                    $StatusCode = $Results.StatusCode
+                    $QueryResult += $QueryRequest.value
                 }
                 catch {
                     $StatusCode = $_.Exception.Response.StatusCode.value__
@@ -533,32 +533,18 @@ function Invoke-DCMsGraphQuery {
                     }
                     else {
                         Write-Error $_.Exception
+                        exit
                     }
                 }
             } while ($StatusCode -eq 429)
 
-            if ($Results.value) {
-                $QueryResults += $Results.value
-            }
-            else {
-                $QueryResults += $Results
-            }
-
-       		$QueryProgress = $QueryResults.Count
+       		$QueryProgress = $QueryResult.Count
         	Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Status "Progress: $QueryProgress objects processed." -PercentComplete -1
-            
-			$uri = $Results.'@odata.nextlink'
-        } until (!($uri))
+        }
 
 		Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Completed
-		
-        # Return the result.
-		if ($QueryResults.Count -gt 25) {
-        	Write-Host "Query results contains more than 25 objects. Stored in Array:`$QueryResults"
-    	}
-    	else {
-        $QueryResults
-    	}
+
+        $QueryResult
     }
     else {
         Write-Error "No Access Token"
@@ -667,8 +653,6 @@ function Enable-DCAzureADPIMRole {
     # Fetch all Azure AD role definitions.
     $AzureADMSPrivilegedRoleDefinition = Get-AzureADMSPrivilegedRoleDefinition -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId.Guid
 
-    Get-AzureADMSPrivilegedRoleDefinition -ProviderId aadRoles -ResourceId "15d06cbf-5ba6-4055-954d-531141e50e6c"
-
 
     # Fetch all Azure AD role settings.
     $AzureADMSPrivilegedRoleSetting = Get-AzureADMSPrivilegedRoleSetting -ProviderId 'aadRoles' -Filter "ResourceId eq '$($AzureADCurrentSessionInfo.TenantId)'"
@@ -718,11 +702,15 @@ function Enable-DCAzureADPIMRole {
     $RoleToActivate = $CurrentAccountRoles[$Answer - 1]
 
 
+    # Prompt user for duration.
+    if (!($Duration = Read-Host "Duration [$($RoleToActivate.maximumGrantPeriodInMinutes / 60) hour(s)]")) { $Duration = ($RoleToActivate.maximumGrantPeriodInMinutes / 60) }
+
+
     # Create activation schedule based on the current role limit.
     $Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
     $Schedule.Type = "Once"
     $Schedule.StartDateTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-    $Schedule.endDateTime = ((Get-Date).AddMinutes($RoleToActivate.maximumGrantPeriodInMinutes)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+    $Schedule.endDateTime = ((Get-Date).AddHours($Duration)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
 
 
     # Check if PIM-role is already activated.
