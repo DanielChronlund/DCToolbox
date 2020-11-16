@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.7
+Version: 1.0.8
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -874,6 +874,184 @@ function Start-DCTorHttpProxy {
     catch {
         Write-Error -Message $PSItem.Exception.Message
     }
+}
+
+
+
+function Test-DCAzureAdUserExistence {
+	<#
+        .SYNOPSIS
+            Test if an account exists in Azure AD for specified email addresses.
+        
+        .DESCRIPTION
+            This CMDlet will connect to public endpoints in Azure AD to find out if an account exists for specified email addresses or not. This script works without any authentication to Azure AD. This is called user enumeration in cyber security.
+            
+            The script can't see accounts for federated domains (since they are on-prem accounts) but it will tell you what organisation the federated domain belongs to.
+
+            Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Azure AD configuration.
+        
+        .PARAMETER Users <String[]>
+            An array of one or more user email addresses to test.
+
+        .PARAMETER UseTorHttpProxy
+            Use a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
+        
+        .EXAMPLE
+            Test-DCAzureAdUserExistence -UseTorHttpProxy -Users "user1@example.com", "user2@example.com", "user3@example.onmicrosoft.com"
+        
+        .INPUTS
+            None
+
+        .OUTPUTS
+            None
+        
+        .NOTES
+            Author:         Daniel Chronlund
+	#>
+
+
+	param (
+		[parameter(Mandatory = $true)]
+		[array]$Users,
+
+		[parameter(Mandatory = $false)]
+		[switch]$UseTorHttpProxy
+	)
+
+	foreach ($User in $Users) {
+		# Create custom object for output.
+		$TestObject = New-Object -TypeName psobject
+
+		# Add username.
+		$TestObject | Add-Member -MemberType NoteProperty -Name "Username" -Value $User
+
+		# Check if user account exists in Azure AD.
+		$IfExistsResult = 1
+
+		if ($UseTorHttpProxy) {
+			$IfExistsResult = ((Invoke-WebRequest -Proxy "http://127.0.0.1:9150" -Method "POST" -Uri "https://login.microsoftonline.com/common/GetCredentialType" -Body "{`"Username`":`"$User`"}").Content | ConvertFrom-Json).IfExistsResult
+		}
+		else {
+			$IfExistsResult = ((Invoke-WebRequest -Method "POST" -Uri "https://login.microsoftonline.com/common/GetCredentialType" -Body "{`"Username`":`"$User`"}").Content | ConvertFrom-Json).IfExistsResult
+		}
+
+		if ($IfExistsResult -eq 0) {   
+			# Check domain federation status.
+			[xml]$Response = ""
+
+			if ($UseTorHttpProxy) {
+				[xml]$Response = (Invoke-WebRequest -Proxy "http://127.0.0.1:9150" -Uri "https://login.microsoftonline.com/getuserrealm.srf?login=$User&xml=1").Content
+			}
+			else {
+				[xml]$Response = (Invoke-WebRequest -Uri "https://login.microsoftonline.com/getuserrealm.srf?login=$User&xml=1").Content
+			}
+
+			# Add org information.
+			$TestObject | Add-Member -MemberType NoteProperty -Name "Org" -Value $Response.RealmInfo.FederationBrandName
+			
+			# If domain is Federated we can't tell if the account exists or not :(
+			if ($Response.RealmInfo.IsFederatedNS -eq $true) {
+				$TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "Unknown (federated domain: $((($Response.RealmInfo.AuthURL -split "//")[1] -split "/")[0]))"
+			}
+			# If the domain is Managed (not federated) we can tell if an account exists in Azure AD :)
+			else {
+				$TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "Yes"
+			}
+		}
+		else {
+			$TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "No"
+		}
+
+		$TestObject
+	}   
+}
+
+
+
+function Test-DCAzureAdCommonAdmins {
+    <#
+        .SYNOPSIS
+            Test if common and easily guessed admin usernames exist for specified Azure AD domains.
+        
+        .DESCRIPTION
+            Uses Test-DCAzureAdUserExistence to test if common and weak admin account names exist in specified Azure AD domains. It uses publicaly available Microsoft endpoints to query for this information. Run help Test-DCAzureAdUserExistence for more info.
+
+            Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Azure AD configuration.
+        
+        .PARAMETER Domains <String[]>
+            An array of one or more domains to test.
+
+        .PARAMETER UseTorHttpProxy
+            Use a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
+        
+        .EXAMPLE
+            Test-DCAzureAdCommonAdmins -UseTorHttpProxy -Domains "example.com", "example2.onmicrosoft.com"
+        
+        .INPUTS
+            None
+
+        .OUTPUTS
+            None
+        
+        .NOTES
+            Author:         Daniel Chronlund
+	#>
+
+	
+	param (
+		[parameter(Mandatory = $true)]
+		[array]$Domains,
+		
+		[parameter(Mandatory = $false)]
+		[switch]$UseTorHttpProxy
+	)
+
+	$CommonAdminUsernames = "admin@DOMAINNAME",
+	"administrator@DOMAINNAME",
+    "root@DOMAINNAME",
+    "system@DOMAINNAME",
+    "operator@DOMAINNAME",
+    "super@DOMAINNAME",
+	"breakglass@DOMAINNAME",
+	"breakglass1@DOMAINNAME",
+	"breakglass2@DOMAINNAME",
+	"serviceaccount@DOMAINNAME",
+    "service@DOMAINNAME",
+    "srv@DOMAINNAME",
+    "svc@DOMAINNAME",
+    "smtp@DOMAINNAME",
+    "smtprelay@DOMAINNAME",
+    "mail@DOMAINNAME",
+    "exchange@DOMAINNAME",
+    "sharepoint@DOMAINNAME",
+    "teams@DOMAINNAME",
+    "azure@DOMAINNAME",
+	"user@DOMAINNAME",
+    "user1@DOMAINNAME",
+    "user01@DOMAINNAME",
+    "guest@DOMAINNAME",
+	"test@DOMAINNAME",
+    "test1@DOMAINNAME",
+    "test01@DOMAINNAME",
+    "testing@DOMAINNAME",
+	"test.test@DOMAINNAME",
+	"test.testsson@DOMAINNAME",
+	"demo@DOMAINNAME",
+    "backup@DOMAINNAME",
+    "print@DOMAINNAME",
+    "sa@DOMAINNAME",
+    "sql@DOMAINNAME",
+    "mysql@DOMAINNAME",
+    "oracle@DOMAINNAME"
+
+	foreach ($Domain in $Domains) {
+		if ($UseTorHttpProxy) {
+			Test-DCAzureAdUserExistence -UseTorHttpProxy -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
+		}
+		else {
+			Test-DCAzureAdUserExistence -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
+		}
+	}   
 }
 
 

@@ -8,8 +8,7 @@ Author: Daniel Chronlund
 
 <h2>Introduction</h2>
 
-This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero 
-trust strategies, attack and defense scenarios, etc.
+This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
 ---------------------------------------------------
 
@@ -60,6 +59,14 @@ Get current public IP address information. You can use the -UseTorHttpProxy to r
 <h3>Start-DCTorHttpProxy</h3>
 
 Start a Tor network HTTP proxy that can be used for anonymization of HTTP traffic in PowerShell. Requires proxy support in the PowerShell CMDlet you want to anonymise. Many of the tools included in DCToolbox supports this.
+
+<h3>Test-DCAzureAdUserExistence</h3>
+
+Test if an account exists in Azure AD for specified email addresses.
+
+<h3>Test-DCAzureAdCommonAdmins</h3>
+
+Test if common and easily guessed admin usernames exist for specified Azure AD domains.
 
 <h3>Install-DCConditionalAccessPolicyBaseline</h3>
 
