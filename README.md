@@ -68,9 +68,13 @@ Test if an account exists in Azure AD for specified email addresses.
 
 Test if common and easily guessed admin usernames exist for specified Azure AD domains.
 
-<h3>Install-DCConditionalAccessPolicyBaseline</h3>
+<h3>Export-DCConditionalAccessPolicyDesign</h3>
 
-Let you install a complete Conditional Access policy design baseline.
+This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign.
+
+<h3>Import-DCConditionalAccessPolicyDesign</h3>
+
+This CMDlet uses Microsoft Graph to automatically create Conditional Access policies from a JSON file. The JSON file can be created from existing policies with Export-DCConditionalAccessPolicyDesign or manually by following the syntax described in the Microsoft Graph documentation.
 
 <h3>Export-DCConditionalAccessAssignments</h3>
 

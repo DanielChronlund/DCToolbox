@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.8
+Version: 1.0.9
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -162,31 +162,42 @@ Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri 
             }
             2 {
                 $Snippet = @'
-$ClientID = ''
-$ClientSecret = ''
-$ExcludeGroup = 'Excluded from CA'
-$ServiceAccountGroup = 'Service Accounts'
-$TermsOfUse = 'Terms of Use'
-$AllowedCountries = 'Allowed countries'
+# Export your Conditional Access policies to JSON.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    FilePath = 'C:\Temp\Conditional Access4.json'
+}
 
-Install-DCConditionalAccessPolicyBaseline -ClientID $ClientID -ClientSecret $ClientSecret -ExcludeGroup $ExcludeGroup -ServiceAccountGroup $ServiceAccountGroup -TermsOfUse $TermsOfUse -AllowedCountries $AllowedCountries
+Export-DCConditionalAccessPolicyDesign @Parameters
+
+
+# Import Conditional Access policies from a JSON file exported by Export-DCConditionalAccessPolicyDesign.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    FilePath = 'C:\Temp\Conditional Access.json'
+    SkipReportOnlyMode = $true
+    DeleteAllExistingPolicies = $true
+}
+
+Import-DCConditionalAccessPolicyDesign @Parameters
+
+
+# Export Conditional Access assignment report to Excel.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    IncludeGroupMembers = $false
+}
+
+Export-DCConditionalAccessAssignments @Parameters
 
 '@
 
                 Set-Clipboard $Snippet
             }
             3 {
-                $Snippet = @'
-$ClientID = ''
-$ClientSecret = ''
-
-Export-DCConditionalAccessAssignments -ClientID $ClientID -ClientSecret $ClientSecret -IncludeGroupMembers
-
-'@
-
-                Set-Clipboard $Snippet
-            }
-            4 {
                 $Snippet = @'
 # Activate an Azure AD Privileged Identity Management (PIM) Role.
 Enable-DCAzureADPIMRole
@@ -232,7 +243,7 @@ X
 	
 
     # Create example menu.
-    $Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Deploy Conditional Access (Install-DCConditionalAccessPolicyBaseline)", "Export Conditional Access Assignments (Export-DCConditionalAccessAssignments)", "Activate an Azure AD Privileged Identity Management (PIM) Role"
+    $Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Manage Conditional Access as Code", "Activate an Azure AD Privileged Identity Management (PIM) Role"
 	
 
     # Handle menu choice.
@@ -1056,16 +1067,16 @@ function Test-DCAzureAdCommonAdmins {
 
 
 
-function Install-DCConditionalAccessPolicyBaseline {
+function Export-DCConditionalAccessPolicyDesign {
     <#
         .NAME
-            Install-DCConditionalAccessPolicyBaseline
+            Export-DCConditionalAccessPolicyDesign
             
         .SYNOPSIS
-            Let you install a complete Conditional Access policy design.
+            Export all Conditional Access policies to JSON.
 
         .DESCRIPTION
-            This CMDlet uses Microsoft Graph to automatically create Conditional Access policies.
+            This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign. You can treat Conditional Access as code!
 
             Before runnning this CMDlet, you first need to register a new application in your Azure AD according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
@@ -1077,13 +1088,7 @@ function Install-DCConditionalAccessPolicyBaseline {
                 Agreement.Read.All
                 Application.Read.All
             
-            Also, the user running this script (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
-
-            As a best practice you should always have a Azure AD security group with break glass accounts excluded from all Conditional Access policies. Specify the break glass groups displayname with the $ExcludeGroup variable.
-
-            The policy design contains a Terms of Use policy. Make sure there is a Terms of Use object created in Azure AD before you run this script. Then set the $TermsOfUse variable in this script to its displayname in Azure AD.
-
-            The policy design will create a policy blocking all countries not explicitly allowed in a named location whitelist. Make sure there is an named location in Azure AD containing your organizations allowed countries. Set the $AllowedCountries variable to its displayname.
+            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
             
         .PARAMETERS
             -ClientID <String>
@@ -1092,17 +1097,8 @@ function Install-DCConditionalAccessPolicyBaseline {
             -ClientSecret <String>
                 Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
 
-            -ExcludeGroup
-                The displayname of the Azure AD break glass group excluded from all CA policies.
-
-            -ServiceAccountGroup
-                The displayname of the Azure AD service account group excluded from all MFA CA policies, containing service accounts.
-
-            -TermsOfUse
-                The displayname of the organizations Terms of Use object in Azure AD.
-
-            -AllowedCountries
-                The displayname of the Allowed countries named location containing whitlisted countries allowed to connect to Azure AD.
+            -FilePath <String>
+                The file path where the new JSON file will be created. Skip to use the current path.
 
             <CommonParameters>
                 This cmdlet supports the common parameters: Verbose, Debug,
@@ -1114,20 +1110,141 @@ function Install-DCConditionalAccessPolicyBaseline {
             None
 
         .OUTPUTS
+            JSON file with all Conditional Access policies.
+
+        .NOTES
+            Author:         Daniel Chronlund
+        
+        .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+            }
+
+            Export-DCConditionalAccessPolicyDesign @Parameters
+    #>
+
+
+
+    # ----- [Initialisations] -----
+
+    # Script parameters.
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$ClientID,
+
+        [parameter(Mandatory = $true)]
+        [string]$ClientSecret,
+
+        [parameter(Mandatory = $false)]
+        [string]$FilePath = "$((Get-Location).Path)\Conditional Access $(Get-Date -Format 'd').json"
+    )
+
+
+    # Set Error Action - Possible choices: Stop, SilentlyContinue
+    $ErrorActionPreference = "Stop"
+
+
+
+    # ----- [Execution] -----
+
+    # Authenticate to Microsoft Graph.
+    Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
+    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+
+
+    # Export all Conditional Access policies from Microsoft Graph as JSON.
+    Write-Verbose -Verbose -Message "Exporting Conditional Access policies to '$FilePath'..."
+    
+    $GraphUri = 'https://graph.microsoft.com/v1.0//identity/conditionalAccess/policies'
+
+    Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | ConvertTo-Json -Depth 5 | Out-File -Force:$true -FilePath $FilePath
+
+    # Perform some clean up in the file.
+    $CleanUp = Get-Content $FilePath | Select-String -Pattern '"id":', '"createdDateTime":', '"modifiedDateTime":' -notmatch
+
+    $CleanUp | Out-File -Force:$true -FilePath $FilePath
+
+
+    Write-Verbose -Verbose -Message "Done!"
+}
+
+
+
+function Import-DCConditionalAccessPolicyDesign {
+    <#
+        .NAME
+            Import-DCConditionalAccessPolicyDesign
+            
+        .SYNOPSIS
+            Import Conditional Access policies from JSON.
+
+        .DESCRIPTION
+            This CMDlet uses Microsoft Graph to automatically create Conditional Access policies from a JSON file.
+            
+            The JSON file can be created from existing policies with Export-DCConditionalAccessPolicyDesign or manually by following the syntax described in the Microsoft Graph documentation:
+            https://docs.microsoft.com/en-us/graph/api/resources/conditionalaccesspolicy?view=graph-rest-1.0
+
+            All Conditional Access policies created by this CMDlet will be set to report-only mode if you don't use the -SkipReportOnlyMode override.
+
+            WARNING: If you want to, you can also delete all existing policies when deploying your new ones with -DeleteAllExistingPolicies, Use this parameter with causon and allways create a backup with Export-DCConditionalAccessPolicyDesign first!
+
+            Before runnning this CMDlet, you first need to register a new application in your Azure AD according to this article:
+            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+
+            The following Microsoft Graph API permissions are required for this script to work:
+                Policy.ReadWrite.ConditionalAccess
+                Policy.Read.All
+                Directory.Read.All
+                Agreement.Read.All
+                Application.Read.All
+            
+            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
+
+            As a best practice you should always have an Azure AD security group with break glass accounts excluded from all Conditional Access policies.
+            
+        .PARAMETERS
+            -ClientID <String>
+                Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+            -ClientSecret <String>
+                Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+            -FilePath <String>
+                The file path of the JSON file containing your Conditional Access policies.
+
+            -SkipReportOnlyMode
+                All Conditional Access policies created by this CMDlet will be set to report-only mode if you don't use this parameter.
+
+            -DeleteAllExistingPolicies
+                WARNING: If you want to, you can delete all existing policies when deploying your new ones with -DeleteAllExistingPolicies, Use this parameter with causon and allways create a backup with Export-DCConditionalAccessPolicyDesign first!!
+
+            <CommonParameters>
+                This cmdlet supports the common parameters: Verbose, Debug,
+                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
+                OutBuffer, PipelineVariable, and OutVariable. For more information, see
+                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+            
+        .INPUTS
+            JSON file containing your Conditional Access policies.
+
+        .OUTPUTS
             None
 
         .NOTES
             Author:         Daniel Chronlund
         
         .EXAMPLE
-            $ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'
-            $ClientSecret = 'j[BQNSi2dSWj4od92ritl_DHJvl1sG.Y/'
-            $ExcludeGroup = 'Excluded from CA'
-            $ServiceAccountGroup = 'Service Accounts'
-            $TermsOfUse = 'Terms of Use'
-            $AllowedCountries = 'Allowed countries'
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+                SkipReportOnlyMode = $false
+                DeleteAllExistingPolicies = $false
+            }
 
-            Install-DCConditionalAccessPolicyBaseline -ClientID $ClientID -ClientSecret $ClientSecret -ExcludeGroup $ExcludeGroup -ServiceAccountGroup $ServiceAccountGroup -TermsOfUse $TermsOfUse -AllowedCountries $AllowedCountries
+            Import-DCConditionalAccessPolicyDesign @Parameters
     #>
 
 
@@ -1143,16 +1260,13 @@ function Install-DCConditionalAccessPolicyBaseline {
         [string]$ClientSecret,
 
         [parameter(Mandatory = $true)]
-        [string]$ExcludeGroup,
+        [string]$FilePath,
 
-        [parameter(Mandatory = $true)]
-        [string]$ServiceAccountGroup,
+        [parameter(Mandatory = $false)]
+        [switch]$SkipReportOnlyMode,
 
-        [parameter(Mandatory = $true)]
-        [string]$TermsOfUse,
-
-        [parameter(Mandatory = $true)]
-        [string]$AllowedCountries
+        [parameter(Mandatory = $false)]
+        [switch]$DeleteAllExistingPolicies
     )
 
 
@@ -1164,504 +1278,49 @@ function Install-DCConditionalAccessPolicyBaseline {
     # ----- [Execution] -----
 
     # Authenticate to Microsoft Graph.
+    Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
     $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
 
 
-    # Get group id of exclude group.
-    $GraphUri = "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$ExcludeGroup'"
-    $ExcludeGroupId = (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Where-Object { $_.displayName -eq $ExcludeGroup }).id
+    # Import policies from JSON file.
+    Write-Verbose -Verbose -Message "Importing JSON from '$FilePath'..."
+    $ConditionalAccessPolicies = Get-Content -Raw -Path $FilePath
 
 
-    # Get group id of service account group.
-    $GraphUri = "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$ServiceAccountGroup'"
-    $ServiceAccountGroupId = (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Where-Object { $_.displayName -eq $ServiceAccountGroup }).id
-
-
-    # Get Terms of Use id (requires API permission Agreement.Read.All).
-    $GraphUri = 'https://graph.microsoft.com/beta/agreements'
-    $TermsOfUseId = (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Where-Object { $_.displayName -eq $TermsOfUse }).id
-
-
-    # Get Allowed countries named location (requires permission Policy.ReadWrite.ConditionalAccess).
-    $GraphUri = 'https://graph.microsoft.com/beta/conditionalAccess/namedLocations'
-    $AllowedCountriesId = (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Where-Object { $_.displayName -eq $AllowedCountries }).id
-
-
-    # Array of JSON representations of all the Conditonal Access policies.
-
-    $ConditionalAccessPolicies = @(@"
-{
-    "displayName": "BLOCK - Legacy Authentication",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ]
-        },
-        "clientAppTypes": [
-            "exchangeActiveSync",
-            "other"
-        ]
-    },
-    "grantControls": {
-        "operator": "OR",
-        "builtInControls": [
-            "block"
-        ]
+    # Modify enabled policies to report-only if not skipped with -SkipReportOnlyMode.
+    if (!($SkipReportOnlyMode)) {
+        Write-Verbose -Verbose -Message "Setting all new policys to report-only mode..."
+        $ConditionalAccessPolicies = $ConditionalAccessPolicies -replace '"enabled"', '"enabledForReportingButNotEnforced"'
     }
-}
-"@
-        , @"
-{
-    "displayName": "BLOCK - High-Risk Sign-Ins",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ],
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ]
-        },
-        "signInRiskLevels": [
-            "high"
-        ],
-        "clientAppTypes": [
-            "browser",
-            "mobileAppsAndDesktopClients"
-        ]
-    },
-    "grantControls": {
-        "operator": "OR",
-        "builtInControls": [
-            "block"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "BLOCK - Countries not Allowed",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ]
-        },
-        "locations": {
-            "includeLocations": [
-                "All"
-            ],
-            "excludeLocations": [
-                "$AllowedCountriesId"
-            ]
-        },
-        "clientAppTypes": [
-            "browser",
-            "mobileAppsAndDesktopClients"
-        ]
-    },
-    "grantControls": {
-        "operator": "OR",
-        "builtInControls": [
-            "block"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "BLOCK - Explicitly Blocked Cloud Apps",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "None"
-            ]
-        },
-        "clientAppTypes": [
-            "browser",
-            "mobileAppsAndDesktopClients"
-        ]
-    },
-    "grantControls": {
-        "operator": "OR",
-        "builtInControls": [
-            "block"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "GRANT - Terms of Use",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ]
-        },
-        "clientAppTypes": [
-            "browser",
-            "mobileAppsAndDesktopClients"
-        ]
-    },
-    "grantControls": {
-        "operator": "OR",
-        "termsOfUse": [
-            "$TermsOfUseId"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "GRANT - Browser Access",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ],
-            "excludeApplications": [
-                "0000000a-0000-0000-c000-000000000000",
-                "d4ebce55-015a-49b5-a083-c84d1797ae8c"
-            ]
-        },
-        "clientAppTypes": [
-            "browser"
-        ]
-    },
-    "grantControls": {
-        "operator": "OR",
-        "builtInControls": [
-            "mfa"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "SESSION - Block Unmanaged Browser File Downloads",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "00000002-0000-0ff1-ce00-000000000000",
-                "00000003-0000-0ff1-ce00-000000000000"
-            ]
-        },
-        "clientAppTypes": [
-            "browser"
-        ],
-        "deviceStates": {
-            "includeStates": [
-                "All"
-            ],
-            "excludeStates": [
-                "Compliant",
-                "DomainJoined"
-            ]
-        }
-    },
-    "sessionControls": {
-        "applicationEnforcedRestrictions": {
-            "isEnabled": true
+
+
+    # Delete all existing policies if -DeleteAllExistingPolicies is specified.
+    if ($DeleteAllExistingPolicies) {
+        Write-Verbose -Verbose -Message "Deleting all existing Conditional Access policies..."
+        $GraphUri = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
+        $ExistingPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+
+        foreach ($Policy in $ExistingPolicies) {
+            Start-Sleep -Seconds 1
+            $GraphUri = "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies/$($Policy.id)"
+
+            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri
         }
     }
-}
-"@
-        , @"
-{
-    "displayName": "GRANT - Mobile Device Access",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ],
-            "excludeApplications": [
-                "0000000a-0000-0000-c000-000000000000",
-                "d4ebce55-015a-49b5-a083-c84d1797ae8c"
-            ]
-        },
-        "platforms": {
-            "includePlatforms": [
-                "iOS",
-                "android",
-                "windowsPhone"
-            ]
-        },
-        "clientAppTypes": [
-            "mobileAppsAndDesktopClients"
-        ]
-    },
-    "grantControls": {
-        "operator": "AND",
-        "builtInControls": [
-            "mfa",
-            "compliantDevice",
-            "approvedApplication"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "GRANT - Windows Device Access",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ],
-            "excludeApplications": [
-                "0000000a-0000-0000-c000-000000000000",
-                "d4ebce55-015a-49b5-a083-c84d1797ae8c"
-            ]
-        },
-        "platforms": {
-            "includePlatforms": [
-                "windows"
-            ]
-        },
-        "clientAppTypes": [
-            "mobileAppsAndDesktopClients"
-        ]
-    },
-    "grantControls": {
-        "operator": "AND",
-        "builtInControls": [
-            "mfa",
-            "domainJoinedDevice",
-            "compliantDevice"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "GRANT - Mac Device Access",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "All"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ],
-            "excludeApplications": [
-                "0000000a-0000-0000-c000-000000000000",
-                "d4ebce55-015a-49b5-a083-c84d1797ae8c"
-            ]
-        },
-        "platforms": {
-            "includePlatforms": [
-                "macOS"
-            ]
-        },
-        "clientAppTypes": [
-            "mobileAppsAndDesktopClients"
-        ]
-    },
-    "grantControls": {
-        "operator": "AND",
-        "builtInControls": [
-            "Mfa",
-            "CompliantDevice"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "GRANT - Guest Access",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "GuestsOrExternalUsers"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "Office365"
-            ]
-        }
-    },
-    "grantControls": {
-        "operator": "OR",
-        "builtInControls": [
-            "mfa"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "BLOCK - Guest Access",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "GuestsOrExternalUsers"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ],
-            "excludeApplications": [
-                "Office365"
-            ]
-        }
-    },
-    "grantControls": {
-        "operator": "OR",
-        "builtInControls": [
-            "block"
-        ]
-    }
-}
-"@
-        , @"
-{
-    "displayName": "BLOCK - Service Accounts",
-    "state": "enabledForReportingButNotEnforced",
-    "conditions": {
-        "users": {
-            "includeUsers": [
-                "$ServiceAccountGroupId"
-            ],
-            "excludeGroups": [
-                "$ExcludeGroupId"
-            ]
-        },
-        "applications": {
-            "includeApplications": [
-                "All"
-            ]
-        },
-        "locations": {
-            "includeLocations": [
-                "All"
-            ],
-            "excludeLocations": [
-                "AllTrusted"
-            ]
-        },
-        "clientAppTypes": [
-            "browser",
-            "mobileAppsAndDesktopClients"
-        ]
-    },
-    "grantControls": {
-        "operator": "OR",
-        "builtInControls": [
-            "block"
-        ]
-    }
-}
-"@)
 
 
     # URI for creating Conditional Access policies.
     $GraphUri = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
 
+    $ConditionalAccessPolicies = $ConditionalAccessPolicies | ConvertFrom-Json
 
-    # Loop through the array of JSON representations of Conditional Access policies and create them.
     foreach ($Policy in $ConditionalAccessPolicies) {
-        # Output the JSON body.
-        $Policy
+        Start-Sleep -Seconds 1
+        Write-Verbose -Verbose -Message "Creating '$($Policy.DisplayName)'..."
 
-        # Create conditional access policy (requires API permission Policy.ReadWrite.ConditionalAccess).
         try {
-            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody $Policy
+            # Create new policies.
+            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody ($Policy | ConvertTo-Json -Depth 10)
         }
         catch {
             Write-Error -Message $_.Exception.Message -ErrorAction Continue
