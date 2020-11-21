@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.9
+Version: 1.0.10
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -162,6 +162,21 @@ Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri 
             }
             2 {
                 $Snippet = @'
+<#
+You first need to register a new application in your Azure AD according to this article:
+https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+
+The following Microsoft Graph API permissions are required for this to work:
+    Policy.ReadWrite.ConditionalAccess
+    Policy.Read.All
+    Directory.Read.All
+    Agreement.Read.All
+    Application.Read.All
+
+Also, the user running this (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
+#>
+
+
 # Export your Conditional Access policies to JSON.
 $Parameters = @{
     ClientID = ''
@@ -523,12 +538,15 @@ function Invoke-DCMsGraphQuery {
             $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json" -Body $GraphBody
         }
         
-
-        $QueryResult += $QueryRequest.value
+        if ($QueryRequest.value) {
+            $QueryResult += $QueryRequest.value
+        } else {
+            $QueryResult += $QueryRequest
+        }
 
 
         # Invoke REST methods and fetch data until there are no pages left.
-        while ($QueryRequest.'@odata.nextLink') {
+        while ($GraphMethod -eq 'GET' -and $QueryRequest.'@odata.nextLink') {
             do {
                 try {
                     $QueryRequest = Invoke-RestMethod -Uri $QueryRequest.'@odata.nextLink' -Headers $Header -Method $GraphMethod -ContentType "application/json"
@@ -553,8 +571,8 @@ function Invoke-DCMsGraphQuery {
         	Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Status "Progress: $QueryProgress objects processed." -PercentComplete -1
         }
 
-		Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Completed
-
+        Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Completed
+        
         $QueryResult
     }
     else {
@@ -1157,7 +1175,7 @@ function Export-DCConditionalAccessPolicyDesign {
     # Export all Conditional Access policies from Microsoft Graph as JSON.
     Write-Verbose -Verbose -Message "Exporting Conditional Access policies to '$FilePath'..."
     
-    $GraphUri = 'https://graph.microsoft.com/v1.0//identity/conditionalAccess/policies'
+    $GraphUri = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
 
     Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | ConvertTo-Json -Depth 5 | Out-File -Force:$true -FilePath $FilePath
 
@@ -1304,7 +1322,7 @@ function Import-DCConditionalAccessPolicyDesign {
             Start-Sleep -Seconds 1
             $GraphUri = "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies/$($Policy.id)"
 
-            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri
+            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri | Out-Null
         }
     }
 
@@ -1320,12 +1338,15 @@ function Import-DCConditionalAccessPolicyDesign {
 
         try {
             # Create new policies.
-            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody ($Policy | ConvertTo-Json -Depth 10)
+            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody ($Policy | ConvertTo-Json -Depth 10) | Out-Null
         }
         catch {
             Write-Error -Message $_.Exception.Message -ErrorAction Continue
         }
     }
+
+
+    Write-Verbose -Verbose -Message "Done!"
 }
 
 
