@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.10
+Version: 1.0.11
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -89,72 +89,102 @@ function Copy-DCExample {
         switch ($MenuChoice) {
             1 {
                 $Snippet = @'
+# Microsoft Graph with PowerShell examples.
+
+
 # *** Connect Examples ***
 
 # Connect to Microsoft Graph with delegated credentials.
-$ClientID = ''
-$ClientSecret = ''
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+}
 
-$AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+$AccessToken = Connect-DCMsGraphAsDelegated @Parameters
 
 
 # Connect to Microsoft Graph with application credentials.
-$TenantName = 'example.onmicrosoft.com'
-$ClientID = ''
-$ClientSecret = ''
+$Parameters = @{
+    TenantName = 'example.onmicrosoft.com'
+    ClientID = ''
+    ClientSecret = ''
+}
 
-$AccessToken = Connect-DCMsGraphAsApplication -TenantName $TenantName -ClientID $ClientID -ClientSecret $ClientSecret
+$AccessToken = Connect-DCMsGraphAsApplication @Parameters
 
 
 # *** Microsoft Graph Query Examples ***
 
 # GET data from Microsoft Graph.
-$GraphUri = 'https://graph.microsoft.com/v1.0/users'
-Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+$Parameters = @{
+    AccessToken = $AccessToken
+    GraphMethod = 'GET'
+    GraphUri = 'https://graph.microsoft.com/v1.0/users'
+}
+
+Invoke-DCMsGraphQuery @Parameters
 
 
 # POST changes to Microsoft Graph.
-$GraphUri = 'https://graph.microsoft.com/v1.0/users'
-
-$GraphBody = @"
-X
+$Parameters = @{
+    AccessToken = $AccessToken
+    GraphMethod = 'POST'
+    GraphUri = 'https://graph.microsoft.com/v1.0/users'
+    GraphBody = @"
+<Insert JSON request body here>
 "@
+} 
 
-Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody $GraphBody
+Invoke-DCMsGraphQuery @Parameters
 
 
 # PUT changes to Microsoft Graph.
-$GraphUri = 'https://graph.microsoft.com/v1.0/users'
-
-$GraphBody = @"
-X
+$Parameters = @{
+    AccessToken = $AccessToken
+    GraphMethod = 'PUT'
+    GraphUri = 'https://graph.microsoft.com/v1.0/users'
+    GraphBody = @"
+<Insert JSON request body here>
 "@
+} 
 
-Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'PUT' -GraphUri $GraphUri -GraphBody $GraphBody
+Invoke-DCMsGraphQuery @Parameters
 
 
 # PATCH changes to Microsoft Graph.
-$GraphUri = 'https://graph.microsoft.com/v1.0/users'
-
-$GraphBody = @"
-X
+$Parameters = @{
+    AccessToken = $AccessToken
+    GraphMethod = 'PATCH'
+    GraphUri = 'https://graph.microsoft.com/v1.0/users'
+    GraphBody = @"
+<Insert JSON request body here>
 "@
+} 
 
-Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'PATCH' -GraphUri $GraphUri -GraphBody $GraphBody
+Invoke-DCMsGraphQuery @Parameters
 
 
 # DELETE data from Microsoft Graph.
-$GraphUri = 'https://graph.microsoft.com/v1.0/users'
-Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri
+$Parameters = @{
+    AccessToken = $AccessToken
+    GraphMethod = 'DELETE'
+    GraphUri = 'https://graph.microsoft.com/v1.0/users'
+} 
+
+Invoke-DCMsGraphQuery @Parameters
 
 
 <#
     Filter examples:
-
     /users?$filter=startswith(givenName,'J')
-
     /users?$filter=givenName eq 'Test'
 #>
+
+
+# Learn more about the Graph commands.
+help Connect-DCMsGraphAsDelegated -Full
+help Connect-DCMsGraphAsApplication -Full
+help Invoke-DCMsGraphQuery -Full
 
 '@
 
@@ -162,6 +192,8 @@ Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri 
             }
             2 {
                 $Snippet = @'
+# Manage Conditional Access as code.
+
 <#
 You first need to register a new application in your Azure AD according to this article:
 https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
@@ -199,7 +231,7 @@ $Parameters = @{
 Import-DCConditionalAccessPolicyDesign @Parameters
 
 
-# Export Conditional Access assignment report to Excel.
+# Export Conditional Access Assignment Report to Excel.
 $Parameters = @{
     ClientID = ''
     ClientSecret = ''
@@ -208,17 +240,23 @@ $Parameters = @{
 
 Export-DCConditionalAccessAssignments @Parameters
 
+
+# Learn more about the different Conditional Access commands.
+help Export-DCConditionalAccessPolicyDesign -Full
+help Import-DCConditionalAccessPolicyDesign -Full
+help Export-DCConditionalAccessAssignments -Full
+
 '@
 
                 Set-Clipboard $Snippet
             }
             3 {
                 $Snippet = @'
-# Activate an Azure AD Privileged Identity Management (PIM) Role.
+# Activate an Azure AD Privileged Identity Management (PIM) role.
 Enable-DCAzureADPIMRole
 
 <#
-    User sign-in will popup and the after signing in, the following flow will happen:
+    User sign-in will popup and the after signing in, the following will happen:
 
     VERBOSE: Connecting to Azure AD...
 
@@ -227,12 +265,138 @@ Enable-DCAzureADPIMRole
     [1] User Account Administrator
     [2] Application Administrator
     [3] Security Administrator
+    [0] Exit
 
     Choice: 3
-    Reason: Testar lite!
+    Duration [1 hour(s)]: 1
+    Reason: Need to do some security work!
     VERBOSE: Activating PIM role...
     VERBOSE: Security Administrator has been activated until 11/13/2020 11:41:01!
 #>
+
+
+# Learn more about Enable-DCAzureADPIMRole.
+help Enable-DCAzureADPIMRole -Full
+
+
+# Privileged Identity Management | My roles:
+# https://portal.azure.com/#blade/Microsoft_Azure_PIMCommon/ActivationMenuBlade/aadmigratedroles
+
+# Privileged Identity Management | Azure AD roles | Overview:
+# https://portal.azure.com/#blade/Microsoft_Azure_PIMCommon/ResourceMenuBlade/aadoverview/resourceId//resourceType/tenant/provider/aadroles
+
+'@
+
+                Set-Clipboard $Snippet
+            }
+            4 {
+                $Snippet = @'
+<#
+    .SYNOPSIS
+        A simple script template.
+
+    .DESCRIPTION
+        Write a description of what the script does and how to use it.
+        
+    .PARAMETER Parameter1
+        Inputs a string into the script.
+            
+    .PARAMETER Parameter2
+        Inputs an integer into the script.
+            
+    .PARAMETER Parameter3
+        Sets a script switch.
+
+    .INPUTS
+        None
+
+    .OUTPUTS
+        System.String
+
+    .NOTES
+        Version:        1.0
+        Author:         Daniel Chronlund
+        Creation Date:  2021-01-01
+
+    .EXAMPLE
+        Script-Template -Parameter "Text" -Verbose
+
+    .EXAMPLE
+        Script-Template -Parameter "Text" -Verbose
+#>
+
+
+
+# ----- [Initialisations] -----
+
+# Script parameters.
+param (
+    [parameter(Mandatory = $true)]
+    [string]$Parameter1 = "Text",
+
+    [parameter(Mandatory = $true)]
+    [int32]$Parameter2 = 1,
+
+    [parameter(Mandatory = $false)]
+    [switch]$Parameter3
+)
+
+
+# Set Error Action - Possible choices: Stop, SilentlyContinue
+$ErrorActionPreference = "Stop"
+
+
+
+# ----- [Declarations] -----
+
+# Variable 1 description.
+$Variable1 = ""
+
+# Variable 2 description.
+$Variable2 = ""
+
+
+
+# ----- [Functions] -----
+
+function function1
+{
+    <#
+        .SYNOPSIS
+            A brief description of the function1 function.
+        
+        .DESCRIPTION
+            A detailed description of the function1 function.
+        
+        .PARAMETER Parameter1
+            A description of the Parameter1 parameter.
+        
+        .EXAMPLE
+            function1 -Parameter1 'Value1'
+    #>
+
+
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$Parameter1
+    )
+
+
+    $Output = $Parameter1
+
+    $Output
+}
+
+
+
+# ----- [Execution] -----
+
+# Do the following.
+function1 -Parameter1 'Test'
+
+
+
+# ----- [End] -----
 
 '@
 
@@ -258,7 +422,7 @@ X
 	
 
     # Create example menu.
-    $Choice = CreateMenu -MenuTitle "Copy DCToolbox Example to Clipboard" -MenuChoices "Microsoft Graph Examples", "Manage Conditional Access as Code", "Activate an Azure AD Privileged Identity Management (PIM) Role"
+    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Azure AD Privileged Identity Management (PIM) role", "General PowerShell script template"
 	
 
     # Handle menu choice.
@@ -269,9 +433,6 @@ X
 
 function Connect-DCMsGraphAsDelegated {
     <#
-        .NAME
-            Connect-DCMsGraphAsDelegated
-            
         .SYNOPSIS
             Connect to Microsoft Graph with delegated credentials (interactive login will popup).
 
@@ -281,18 +442,11 @@ function Connect-DCMsGraphAsDelegated {
             Before runnning this CMDlet, you first need to register a new application in your Azure AD according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
             
-        .PARAMETERS
-            -ClientID <String>
-                Client ID for your Azure AD application with Conditional Access Graph permissions.
-
-            -ClientSecret <String>
-                Client secret for the Azure AD application with Conditional Access Graph permissions.
-
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+        .PARAMETER ClientID
+            Client ID for your Azure AD application with Conditional Access Graph permissions.
+        
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Graph permissions.
             
         .INPUTS
             None
@@ -301,7 +455,9 @@ function Connect-DCMsGraphAsDelegated {
             None
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             $AccessToken = Connect-DCMsGraphAsDelegated -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/'
@@ -382,9 +538,6 @@ function Connect-DCMsGraphAsDelegated {
 
 function Connect-DCMsGraphAsApplication {
     <#
-        .NAME
-            Connect-DCMsGraphAsApplication
-            
         .SYNOPSIS
             Connect to Microsoft Graph with application credentials.
 
@@ -394,21 +547,14 @@ function Connect-DCMsGraphAsApplication {
             Before runnning this CMDlet, you first need to register a new application in your Azure AD according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
             
-        .PARAMETERS
-            -ClientID <String>
-                Client ID for your Azure AD application with Conditional Access Graph permissions.
+        .PARAMETER ClientID
+            Client ID for your Azure AD application with Conditional Access Graph permissions.
 
-            -ClientSecret <String>
-                Client secret for the Azure AD application with Conditional Access Graph permissions.
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Graph permissions.
 
-            -TenantName <String>
-                The name of your tenant (example.onmicrosoft.com).
-
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+        .PARAMETER TenantName
+            The name of your tenant (example.onmicrosoft.com).
             
         .INPUTS
             None
@@ -417,7 +563,9 @@ function Connect-DCMsGraphAsApplication {
             None
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             $AccessToken = Connect-DCMsGraphAsApplication -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/' -TenantName 'example.onmicrosoft.com'
@@ -458,9 +606,6 @@ function Connect-DCMsGraphAsApplication {
 
 function Invoke-DCMsGraphQuery {
     <#
-        .NAME
-            Invoke-DCMsGraphQuery
-            
         .SYNOPSIS
             Run a Microsoft Graph query.
 
@@ -470,24 +615,17 @@ function Invoke-DCMsGraphQuery {
             Before runnning this CMDlet, you first need to register a new application in your Azure AD according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
             
-        .PARAMETERS
-            -AccessToken <String>
+        .PARAMETER AccessToken
                 An access token generated by Connect-DCMsGraphAsDelegated or Connect-DCMsGraphAsApplication (depending on what permissions you use in Graph).
 
-            -GraphMethod <String>
+        .PARAMETER GraphMethod
                 The HTTP method for the Graph call, like GET, POST, PUT, PATCH, DELETE. Default is GET.
 
-            -GraphUri <String>
+        .PARAMETER GraphUri
                 The Microsoft Graph URI for the query. Example: https://graph.microsoft.com/v1.0/users/
 
-            -GraphBody <String>
+        .PARAMETER GraphBody
                 The request body of the Graph call. This is often used with methids like POST, PUT and PATCH. It is not used with GET.
-
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
             
         .INPUTS
             None
@@ -496,7 +634,9 @@ function Invoke-DCMsGraphQuery {
             None
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri 'https://graph.microsoft.com/v1.0/users/'
@@ -584,9 +724,6 @@ function Invoke-DCMsGraphQuery {
 
 function Enable-DCAzureADPIMRole {
     <#
-        .NAME
-            Enable-DCAzureADPIMRole
-            
         .SYNOPSIS
             Activate an Azure AD Privileged Identity Management (PIM) role with PowerShell.
 
@@ -595,13 +732,6 @@ function Enable-DCAzureADPIMRole {
 
             During activation, the user will be primpted to specify a reason for the activation.
             
-        .PARAMETERS
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
-            
         .INPUTS
             None
 
@@ -609,7 +739,9 @@ function Enable-DCAzureADPIMRole {
             None
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:      https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             Enable-DCAzureADPIMRole
@@ -690,6 +822,14 @@ function Enable-DCAzureADPIMRole {
     $AzureADMSPrivilegedRoleAssignment = Get-AzureADMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $AzureADCurrentSessionInfo.TenantId -Filter "subjectId eq '$CurrentAccountId'" | Where-Object { $_.AssignmentState -eq 'Eligible' }
 
 
+    # Exit if no roles are found.
+    if ($AzureADMSPrivilegedRoleAssignment.Count -eq 0) {
+        Write-Verbose -Verbose -Message ''
+        Write-Verbose -Verbose -Message 'Found no eligible PIM roles to activate :('
+        break
+    }
+
+
     # Format the fetched information.
     $CurrentAccountRoles = foreach ($RoleAssignment in ($AzureADMSPrivilegedRoleAssignment | Select-Object -Unique)) {
         $CustomObject = New-Object -TypeName psobject
@@ -720,6 +860,7 @@ function Enable-DCAzureADPIMRole {
         # Add to counter.
         $Counter = $Counter + 1
     }
+    Write-Host -ForegroundColor "Yellow" "[0] Exit"
     
     # Write empty line.
     Write-Host -ForegroundColor "Yellow" ""
@@ -727,6 +868,21 @@ function Enable-DCAzureADPIMRole {
     # Prompt user for input.
     $Prompt = "Choice"
     $Answer = Read-Host $Prompt
+
+    # Exit if requested.
+    if ($Answer -eq 0) {
+        break
+    }
+
+    # Exit if nothing is selected.
+    if ($Answer -eq '') {
+        break
+    }
+
+    # Exit if no role is selected.
+    if (!($CurrentAccountRoles[$Answer - 1])) {
+        break
+    }
 
     $RoleToActivate = $CurrentAccountRoles[$Answer - 1]
 
@@ -763,24 +919,14 @@ function Enable-DCAzureADPIMRole {
 
 function Get-DCPublicIp {
     <#
-        .NAME
-            Get-DCPublicIp
-            
         .SYNOPSIS
             Get current public IP address information.
 
         .DESCRIPTION
             Get the current public IP address and related information. The ipinfo.io API is used to fetch the information. You can use the -UseTorHttpProxy to route traffic through a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
             
-        .PARAMETERS
-            -UseTorHttpProxy
-                Route traffic through a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
-
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+        .PARAMETER UseTorHttpProxy
+            Route traffic through a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
             
         .INPUTS
             None
@@ -789,13 +935,17 @@ function Get-DCPublicIp {
             Public IP address information.
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             Get-DCPublicIp
 
+        .EXAMPLE
             (Get-DCPublicIp).ip
 
+        .EXAMPLE
             Write-Host "$((Get-DCPublicIp).city) $((Get-DCPublicIp).country)"
     #>
 
@@ -817,9 +967,6 @@ function Get-DCPublicIp {
 
 function Start-DCTorHttpProxy {
     <#
-        .NAME
-            Start-DCTorHttpProxy
-            
         .SYNOPSIS
             Start a Tor network HTTP proxy for anonymous HTTP calls via PowerShell.
 
@@ -842,15 +989,8 @@ function Start-DCTorHttpProxy {
             Download Tor browser:
             https://www.torproject.org/download/
             
-        .PARAMETERS
-            -TorBrowserPath <String>
-                The path to the Tor browser directory. Default is 'C:\Temp\Tor Browser'.
-
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+        .PARAMETER TorBrowserPath
+            The path to the Tor browser directory. Default is 'C:\Temp\Tor Browser'.
             
         .INPUTS
             None
@@ -859,7 +999,9 @@ function Start-DCTorHttpProxy {
             None
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             Start-DCTorHttpProxy
@@ -919,7 +1061,7 @@ function Test-DCAzureAdUserExistence {
 
             Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Azure AD configuration.
         
-        .PARAMETER Users <String[]>
+        .PARAMETER Users
             An array of one or more user email addresses to test.
 
         .PARAMETER UseTorHttpProxy
@@ -935,7 +1077,9 @@ function Test-DCAzureAdUserExistence {
             None
         
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
 	#>
 
 
@@ -1007,7 +1151,7 @@ function Test-DCAzureAdCommonAdmins {
 
             Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Azure AD configuration.
         
-        .PARAMETER Domains <String[]>
+        .PARAMETER Domains
             An array of one or more domains to test.
 
         .PARAMETER UseTorHttpProxy
@@ -1023,7 +1167,9 @@ function Test-DCAzureAdCommonAdmins {
             None
         
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
 	#>
 
 	
@@ -1087,9 +1233,6 @@ function Test-DCAzureAdCommonAdmins {
 
 function Export-DCConditionalAccessPolicyDesign {
     <#
-        .NAME
-            Export-DCConditionalAccessPolicyDesign
-            
         .SYNOPSIS
             Export all Conditional Access policies to JSON.
 
@@ -1108,22 +1251,15 @@ function Export-DCConditionalAccessPolicyDesign {
             
             Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
             
-        .PARAMETERS
-            -ClientID <String>
-                Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
+        .PARAMETER ClientID
+            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
 
-            -ClientSecret <String>
-                Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
 
-            -FilePath <String>
-                The file path where the new JSON file will be created. Skip to use the current path.
+        .PARAMETER FilePath
+            The file path where the new JSON file will be created. Skip to use the current path.
 
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
-            
         .INPUTS
             None
 
@@ -1131,7 +1267,9 @@ function Export-DCConditionalAccessPolicyDesign {
             JSON file with all Conditional Access policies.
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             $Parameters = @{
@@ -1192,9 +1330,6 @@ function Export-DCConditionalAccessPolicyDesign {
 
 function Import-DCConditionalAccessPolicyDesign {
     <#
-        .NAME
-            Import-DCConditionalAccessPolicyDesign
-            
         .SYNOPSIS
             Import Conditional Access policies from JSON.
 
@@ -1222,27 +1357,20 @@ function Import-DCConditionalAccessPolicyDesign {
 
             As a best practice you should always have an Azure AD security group with break glass accounts excluded from all Conditional Access policies.
             
-        .PARAMETERS
-            -ClientID <String>
-                Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
+        .PARAMETER ClientID
+            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
 
-            -ClientSecret <String>
-                Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
 
-            -FilePath <String>
-                The file path of the JSON file containing your Conditional Access policies.
+        .PARAMETER FilePath
+            The file path of the JSON file containing your Conditional Access policies.
 
-            -SkipReportOnlyMode
-                All Conditional Access policies created by this CMDlet will be set to report-only mode if you don't use this parameter.
+        .PARAMETER SkipReportOnlyMode
+            All Conditional Access policies created by this CMDlet will be set to report-only mode if you don't use this parameter.
 
-            -DeleteAllExistingPolicies
-                WARNING: If you want to, you can delete all existing policies when deploying your new ones with -DeleteAllExistingPolicies, Use this parameter with causon and allways create a backup with Export-DCConditionalAccessPolicyDesign first!!
-
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+        .PARAMETER DeleteAllExistingPolicies
+            WARNING: If you want to, you can delete all existing policies when deploying your new ones with -DeleteAllExistingPolicies, Use this parameter with causon and allways create a backup with Export-DCConditionalAccessPolicyDesign first!!
             
         .INPUTS
             JSON file containing your Conditional Access policies.
@@ -1251,7 +1379,9 @@ function Import-DCConditionalAccessPolicyDesign {
             None
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             $Parameters = @{
@@ -1353,9 +1483,6 @@ function Import-DCConditionalAccessPolicyDesign {
 
 function Export-DCConditionalAccessAssignments {
     <#
-        .NAME
-            Export-DCConditionalAccessAssignments
-            
         .SYNOPSIS
             Automatically generate an Excel report containing Conditional Access assignments in your Azure AD.
 
@@ -1387,21 +1514,14 @@ function Export-DCConditionalAccessAssignments {
 
             More information can be found here: https://danielchronlund.com/2020/10/20/export-your-conditional-access-policy-assignments-to-excel/
             
-        .PARAMETERS
-            -ClientID <String>
-                Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
+        .PARAMETER ClientID
+            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
 
-            -ClientSecret <String>
-                Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
 
-            -IncludeGroupMembers
-                If you include the -IncludeGroupMembers parameter, members of assigned groups will be included in the report as well (of course, this can produce a very large report if you have included large groups in your policy assignments).
-
-            <CommonParameters>
-                This cmdlet supports the common parameters: Verbose, Debug,
-                ErrorAction, ErrorVariable, WarningAction, WarningVariable,
-                OutBuffer, PipelineVariable, and OutVariable. For more information, see
-                about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
+        .PARAMETER IncludeGroupMembers
+            If you include the -IncludeGroupMembers parameter, members of assigned groups will be included in the report as well (of course, this can produce a very large report if you have included large groups in your policy assignments).
             
         .INPUTS
             None
@@ -1410,7 +1530,9 @@ function Export-DCConditionalAccessAssignments {
             None
 
         .NOTES
-            Author:         Daniel Chronlund
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             $ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'
