@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.11
+Version: 1.0.12
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -209,7 +209,7 @@ Also, the user running this (the one who signs in when the authentication pops u
 #>
 
 
-# Export your Conditional Access policies to JSON.
+# Export your Conditional Access policies to a JSON file for backup.
 $Parameters = @{
     ClientID = ''
     ClientSecret = ''
@@ -231,6 +231,15 @@ $Parameters = @{
 Import-DCConditionalAccessPolicyDesign @Parameters
 
 
+# Export Conditional Access policy design report to Excel.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+}
+
+New-DCConditionalAccessPolicyDesignReport @Parameters
+
+
 # Export Conditional Access Assignment Report to Excel.
 $Parameters = @{
     ClientID = ''
@@ -238,13 +247,14 @@ $Parameters = @{
     IncludeGroupMembers = $false
 }
 
-Export-DCConditionalAccessAssignments @Parameters
+New-DCConditionalAccessAssignmentReport @Parameters
 
 
-# Learn more about the different Conditional Access commands.
+# Learn more about the different Conditional Access commands in DCToolbox.
 help Export-DCConditionalAccessPolicyDesign -Full
 help Import-DCConditionalAccessPolicyDesign -Full
-help Export-DCConditionalAccessAssignments -Full
+help New-DCConditionalAccessPolicyDesignReport -Full
+help New-DCConditionalAccessAssignmentReport -Full
 
 '@
 
@@ -670,7 +680,6 @@ function Invoke-DCMsGraphQuery {
         $QueryRequest = @()
         $QueryResult = @()
 
-
         # Run the first query.
         if ($GraphMethod -eq 'GET') {
             $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json"
@@ -686,32 +695,11 @@ function Invoke-DCMsGraphQuery {
 
 
         # Invoke REST methods and fetch data until there are no pages left.
-        while ($GraphMethod -eq 'GET' -and $QueryRequest.'@odata.nextLink') {
-            do {
-                try {
-                    $QueryRequest = Invoke-RestMethod -Uri $QueryRequest.'@odata.nextLink' -Headers $Header -Method $GraphMethod -ContentType "application/json"
+        while ($QueryRequest.'@odata.nextLink') {
+            $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $QueryRequest.'@odata.nextLink' -UseBasicParsing -Method $GraphMethod -ContentType "application/json"
 
-                    $QueryResult += $QueryRequest.value
-                }
-                catch {
-                    $StatusCode = $_.Exception.Response.StatusCode.value__
-
-                    if ($StatusCode -eq 429) {
-                        Write-Warning "Got throttled by Microsoft. Sleeping for 45 seconds..."
-                        Start-Sleep -Seconds 45
-                    }
-                    else {
-                        Write-Error $_.Exception
-                        exit
-                    }
-                }
-            } while ($StatusCode -eq 429)
-
-       		$QueryProgress = $QueryResult.Count
-        	Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Status "Progress: $QueryProgress objects processed." -PercentComplete -1
+            $QueryResult += $QueryRequest.value
         }
-
-        Write-Progress -Activity "MS Graph REST API running. METHOD: $graphMethod URI: $GraphUri" -Completed
         
         $QueryResult
     }
@@ -780,7 +768,7 @@ function Enable-DCAzureADPIMRole {
         try {
             $Var = Get-AzureADTenantDetail 
         } 
-        catch [Microsoft.Open.Azure.AD.CommonLibrary.AadNeedAuthenticationException] {
+        catch {
             $false
         }
     }
@@ -1294,7 +1282,7 @@ function Export-DCConditionalAccessPolicyDesign {
         [string]$ClientSecret,
 
         [parameter(Mandatory = $false)]
-        [string]$FilePath = "$((Get-Location).Path)\Conditional Access $(Get-Date -Format 'd').json"
+        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'd').json"
     )
 
 
@@ -1313,9 +1301,9 @@ function Export-DCConditionalAccessPolicyDesign {
     # Export all Conditional Access policies from Microsoft Graph as JSON.
     Write-Verbose -Verbose -Message "Exporting Conditional Access policies to '$FilePath'..."
     
-    $GraphUri = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
+    $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
 
-    Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | ConvertTo-Json -Depth 5 | Out-File -Force:$true -FilePath $FilePath
+    Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Sort-Object createdDateTime | ConvertTo-Json -Depth 10 | Out-File -Force:$true -FilePath $FilePath
 
     # Perform some clean up in the file.
     $CleanUp = Get-Content $FilePath | Select-String -Pattern '"id":', '"createdDateTime":', '"modifiedDateTime":' -notmatch
@@ -1445,12 +1433,12 @@ function Import-DCConditionalAccessPolicyDesign {
     # Delete all existing policies if -DeleteAllExistingPolicies is specified.
     if ($DeleteAllExistingPolicies) {
         Write-Verbose -Verbose -Message "Deleting all existing Conditional Access policies..."
-        $GraphUri = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
+        $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
         $ExistingPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
 
         foreach ($Policy in $ExistingPolicies) {
             Start-Sleep -Seconds 1
-            $GraphUri = "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies/$($Policy.id)"
+            $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$($Policy.id)"
 
             Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri | Out-Null
         }
@@ -1458,7 +1446,7 @@ function Import-DCConditionalAccessPolicyDesign {
 
 
     # URI for creating Conditional Access policies.
-    $GraphUri = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
+    $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
 
     $ConditionalAccessPolicies = $ConditionalAccessPolicies | ConvertFrom-Json
 
@@ -1481,29 +1469,335 @@ function Import-DCConditionalAccessPolicyDesign {
 
 
 
-function Export-DCConditionalAccessAssignments {
+function New-DCConditionalAccessPolicyDesignReport {
     <#
         .SYNOPSIS
-            Automatically generate an Excel report containing Conditional Access assignments in your Azure AD.
+            Automatically generate an Excel report containing your current Conditional Access policy design.
 
         .DESCRIPTION
-            The CMDlet uses Microsoft Graph to fetch all Conditional Access policy assignments, both group- and user assignments (for now, it doesn't support role assignments). It exports them to Excel in a nicely formatted report for your filtering and analysing needs. If you include the -IncludeGroupMembers parameter, members of assigned groups will be included in the report as well (of course, this can produce very large reports if you have included large groups in your policy assignments).
-
-            The purpose of the report is to give you an overview of how Conditional Access policies are currently applied in an Azure AD tenant, and which users are targeted by which policies.
-
-            The report does not include information about the policies themselves. There are other tools and scripts available for that task.
+            Uses Microsoft Graph to fetch all Conditional Access policies and exports an Excel report, You can use the report as documentation, design document, or to get a nice overview of all your policies.
 
             Before runnning this CMDlet, you first need to register a new application in your Azure AD according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
 
+            The following Microsoft Graph API permissions are required for this script to work:
+                Policy.ReadWrite.ConditionalAccess
+                Policy.Read.All
+                Directory.Read.All
+                Agreement.Read.All
+                Application.Read.All
+            
             The CMDlet also uses the PowerShell Excel Module for the export to Excel. You can install this module with:
             Install-Module ImportExcel
+
+            The report is exported to Excel and will automatically open. In Excel, please do this:
+            1. Select all cells.
+            2. Click on "Wrap Text".
+            3. Click on "Top Align".
+
+            The report is now easier to read.
+            
+            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
+            
+        .PARAMETER ClientID
+            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+        .INPUTS
+            None
+
+        .OUTPUTS
+            Excel report with all Conditional Access policies.
+
+        .NOTES
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
+        
+        .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+            }
+
+            New-DCConditionalAccessPolicyDesignReport @Parameters
+    #>
+
+
+
+    # ----- [Initialisations] -----
+
+    # Script parameters.
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$ClientID,
+
+        [parameter(Mandatory = $true)]
+        [string]$ClientSecret
+    )
+
+
+    # Set Error Action - Possible choices: Stop, SilentlyContinue
+    $ErrorActionPreference = "Stop"
+
+
+
+    # ----- [Execution] -----
+
+    # Check if the Excel module is installed.
+    if (Get-Module -ListAvailable -Name "ImportExcel") {
+        # Do nothing.
+    }
+    else {
+        Write-Error -Exception "The Excel PowerShell module is not installed. Please, run 'Install-Module ImportExcel' as an admin and try again." -ErrorAction Stop
+    }
+
+
+    # Authenticate to Microsoft Graph.
+    Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
+    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+
+
+    # Export all Conditional Access policies from Microsoft Graph as JSON.
+    Write-Verbose -Verbose -Message "Generating Conditional Access policy design report..."
+    
+
+    # Fetch conditional access policies.
+    $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
+    $CAPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Sort-Object createdDateTime
+
+
+    # Fetch service principals for id translation.
+    $GraphUri = 'https://graph.microsoft.com/beta/servicePrincipals'
+    $EnterpriseApps = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+
+
+    # Format the result.
+    $Result = foreach ($Policy in $CAPolicies) {
+        $CustomObject = New-Object -TypeName psobject
+
+
+        # displayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "displayName" -Value (Out-String -InputObject $Policy.displayName)
+
+
+        # state
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "state" -Value (Out-String -InputObject $Policy.state)
+
+
+        # includeUsers
+        $Users = foreach ($User in $Policy.conditions.users.includeUsers) {
+            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers') {
+                $GraphUri = "https://graph.microsoft.com/beta/users/$User"
+                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
+            } else {
+                $User
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeUsers" -Value (Out-String -InputObject $Users)
+
+
+        # excludeUsers
+        $Users = foreach ($User in $Policy.conditions.users.excludeUsers) {
+            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers') {
+                $GraphUri = "https://graph.microsoft.com/beta/users/$User"
+                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
+            } else {
+                $User
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsers" -Value (Out-String -InputObject $Users)
+
+
+        # includeGroups
+        $Groups = foreach ($Group in $Policy.conditions.users.includeGroups) {
+            if ($Group -ne 'All') {
+                $GraphUri = "https://graph.microsoft.com/beta/groups/$Group"
+                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+            } else {
+                $Group
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeGroups" -Value (Out-String -InputObject $Groups)
+
+
+        # excludeGroups
+        $Groups = foreach ($Group in $Policy.conditions.users.excludeGroups) {
+            if ($Group -ne 'All') {
+                $GraphUri = "https://graph.microsoft.com/beta/groups/$Group"
+                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+            } else {
+                $Group
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeGroups" -Value (Out-String -InputObject $Groups)
+
+
+        # includeRoles
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeRoles" -Value (Out-String -InputObject $Policy.conditions.users.includeRoles)
+
+
+        # excludeRoles
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeRoles" -Value (Out-String -InputObject $Policy.conditions.users.excludeRoles)
+
+
+        # includeApplications
+        $Applications = foreach ($Application in $Policy.conditions.applications.includeApplications) {
+            if ($Application -ne 'None' -and $Application -ne 'All' -and $Application -ne 'Office365') {
+                ($EnterpriseApps | Where-Object { $_.appID -eq $Application }).displayName
+            } else {
+                $Application
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeApplications" -Value (Out-String -InputObject $Applications)
+
+
+        # excludeApplications
+        $Applications = foreach ($Application in $Policy.conditions.applications.excludeApplications) {
+            if ($Application -ne 'None' -and $Application -ne 'All' -and $Application -ne 'Office365') {
+                ($EnterpriseApps | Where-Object { $_.appID -eq $Application }).displayName
+            } else {
+                $Application
+            }
+        }
+
+
+        # excludeApplications
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeApplications" -Value (Out-String -InputObject $Applications)
+
+
+        # includeUserActions
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeUserActions" -Value (Out-String -InputObject $Policy.conditions.applications.includeUserActions)
+
+
+        # userRiskLevels
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "userRiskLevels" -Value (Out-String -InputObject $Policy.conditions.userRiskLevels)
+
+
+        # signInRiskLevels
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "signInRiskLevels" -Value (Out-String -InputObject $Policy.conditions.signInRiskLevels)
+
+
+        # includePlatforms
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includePlatforms" -Value (Out-String -InputObject $Policy.conditions.platforms.includePlatforms)
+
+
+        # excludePlatforms
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludePlatforms" -Value (Out-String -InputObject $Policy.conditions.platforms.excludePlatforms)
+
+
+        # clientAppTypes
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "clientAppTypes" -Value (Out-String -InputObject $Policy.conditions.clientAppTypes)
+
+
+        # includeLocations
+        $includeLocations = foreach ($includeLocation in $Policy.conditions.locations.includeLocations) {
+            if ($includeLocation -ne 'All' -and $includeLocation -ne 'AllTrusted') {
+                $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/$includeLocation"
+                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+            } else {
+                $includeLocation
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeLocations" -Value (Out-String -InputObject $includeLocations)
+
+
+        # excludeLocation
+        $excludeLocations = foreach ($excludeLocation in $Policy.conditions.locations.excludeLocations) {
+            if ($excludeLocation -ne 'All' -and $includeLocation -ne 'AllTrusted') {
+                $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/$excludeLocation"
+                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+            } else {
+                $excludeLocation
+            }
+        }
+
+
+        # excludeLocations
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeLocations" -Value (Out-String -InputObject $excludeLocations)
+
+
+        # grantControls
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "grantControls" -Value (Out-String -InputObject $Policy.grantControls.builtInControls)
+
+
+        # termsOfUse
+        $TermsOfUses = foreach ($TermsOfUse in $Policy.grantControls.termsOfUse) {
+            $GraphUri = "https://graph.microsoft.com/beta/agreements/$TermsOfUse"
+            (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+        }
+        
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "termsOfUse" -Value (Out-String -InputObject $TermsOfUses)
+
+
+        # operator
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "operator" -Value (Out-String -InputObject $Policy.grantControls.operator)
+
+
+        # sessionControlsapplicationEnforcedRestrictions
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "sessionControlsapplicationEnforcedRestrictions" -Value (Out-String -InputObject $Policy.sessionControls.applicationEnforcedRestrictions.isEnabled)
+
+
+        # sessionControlscloudAppSecurity
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "sessionControlscloudAppSecurity" -Value (Out-String -InputObject $Policy.sessionControls.cloudAppSecurity.isEnabled)
+
+
+        # sessionControlssignInFrequency
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "sessionControlssignInFrequency" -Value (Out-String -InputObject $Policy.sessionControls.signInFrequency)
+
+
+        # sessionControlspersistentBrowser
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "sessionControlspersistentBrowser" -Value (Out-String -InputObject $Policy.sessionControls.persistentBrowser)
+
+
+        # Return object.
+        $CustomObject
+    }
+
+
+    # Export the result to Excel.
+    Write-Verbose -Verbose -Message "Exporting report to Excel..."
+    $Path = "$((Get-Location).Path)\Conditional Access Policy Design Report $(Get-Date -Format 'd').xlsx"
+    $Result | Export-Excel -Path $Path -WorksheetName "CA Policies" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -Show
+
+
+    Write-Verbose -Verbose -Message "Saved $Path"
+    Write-Verbose -Verbose -Message "Done!"
+}
+
+
+
+function New-DCConditionalAccessAssignmentReport {
+    <#
+        .SYNOPSIS
+            Automatically generate an Excel report containing your current Conditional Access assignments.
+
+        .DESCRIPTION
+            Uses Microsoft Graph to fetch all Conditional Access policy assignments, both group- and user assignments (for now, it doesn't support role assignments). It exports them to Excel in a nicely formatted report for your filtering and analysing needs. If you include the -IncludeGroupMembers parameter, members of assigned groups will be included in the report as well (of course, this can produce very large reports if you have included large groups in your policy assignments).
+
+            The purpose of the report is to give you an overview of how Conditional Access policies are currently applied in an Azure AD tenant, and which users are targeted by which policies.
+
+            The report does not include information about the policies themselves. Use New-DCConditionalAccessPolicyDesignReport for that task.
+
+            Before runnning this CMDlet, you first need to register a new application in your Azure AD according to this article:
+            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
 
             The following Microsoft Graph API permissions are required for this script to work:
                 Policy.Read.ConditionalAccess
                 Policy.Read.All
                 Directory.Read.All
                 Group.Read.All
+
+            The CMDlet also uses the PowerShell Excel Module for the export to Excel. You can install this module with:
+            Install-Module ImportExcel
 
             The report is exported to Excel and will automatically open. In Excel, please do this:
             1. Select all cells.
@@ -1527,7 +1821,7 @@ function Export-DCConditionalAccessAssignments {
             None
 
         .OUTPUTS
-            None
+            Excel report with all Conditional Access aassignments.
 
         .NOTES
             Author:   Daniel Chronlund
@@ -1535,10 +1829,10 @@ function Export-DCConditionalAccessAssignments {
             Blog:     https://danielchronlund.com/
         
         .EXAMPLE
-            $ClientID = '8a85d2cf-17a7-4e2d-a43f-05b9a81a9bba'
-            $ClientSecret = 'j[BQNSi2dSWj4od92ritl_DHJvl1sG.Y/'
+            $ClientID = ''
+            $ClientSecret = ''
 
-            Export-DCConditionalAccessAssignments -ClientID $ClientID -ClientSecret $ClientSecret -IncludeGroupMembers
+            New-DCConditionalAccessAssignmentReport -ClientID $ClientID -ClientSecret $ClientSecret -IncludeGroupMembers
     #>
 
 
@@ -1581,7 +1875,7 @@ function Export-DCConditionalAccessAssignments {
 
     # Get all Conditional Access policies.
     Write-Verbose -Verbose -Message "Getting all Conditional Access policies..."
-    $GraphUri = 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies'
+    $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
     $CAPolicies = @(Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri)
     Write-Verbose -Verbose -Message "Found $(($CAPolicies).Count) policies..."
 
@@ -1788,9 +2082,11 @@ function Export-DCConditionalAccessAssignments {
 
     # Export the result to Excel.
     Write-Verbose -Verbose -Message "Exporting report to Excel..."
-    $Result | Export-Excel -Path "ConditonalAccessAssignments.xlsx" -WorksheetName "Conditional Access Assignments" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -Show
+    $Path = "$((Get-Location).Path)\Conditional Access Assignment Report $(Get-Date -Format 'd').xlsx"
+    $Result | Export-Excel -Path $Path -WorksheetName "CA Assignments" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -Show
 
 
+    Write-Verbose -Verbose -Message "Saved $Path"
     Write-Verbose -Verbose -Message "Done!"
 
 

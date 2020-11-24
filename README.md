@@ -76,9 +76,13 @@ This CMDlet uses Microsoft Graph to export all Conditional Access policies in th
 
 This CMDlet uses Microsoft Graph to automatically create Conditional Access policies from a JSON file. The JSON file can be created from existing policies with Export-DCConditionalAccessPolicyDesign or manually by following the syntax described in the Microsoft Graph documentation.
 
-<h3>Export-DCConditionalAccessAssignments</h3>
+<h3>New-DCConditionalAccessPolicyDesignReport</h3>
 
-Automatically generate an Excel report containing Conditional Access assignments in your Azure AD.
+Automatically generate an Excel report containing your current Conditional Access policy design.
+
+<h3>New-DCConditionalAccessAssignmentReport</h3>
+
+Automatically generate an Excel report containing your current Conditional Access assignments.
 
 ---------------------------------------------------
 
