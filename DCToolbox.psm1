@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.13
+Version: 1.0.14
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -1699,10 +1699,10 @@ function New-DCConditionalAccessPolicyDesignReport {
 
         # includeLocations
         $includeLocations = foreach ($includeLocation in $Policy.conditions.locations.includeLocations) {
-            if ($includeLocation -ne 'All' -and $includeLocation -ne 'AllTrusted' -and $includeLocation -ne '00000000-0000-0000-000000000000') {
+            if ($includeLocation -ne 'All' -and $includeLocation -ne 'AllTrusted' -and $includeLocation -ne '00000000-0000-0000-0000-000000000000') {
                 $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/$includeLocation"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
-            } elseif ($includeLocation -eq '00000000-0000-0000-000000000000') {
+            } elseif ($includeLocation -eq '00000000-0000-0000-0000-000000000000') {
                 'MFA Trusted IPs'
             } else {
                 $includeLocation
@@ -1714,10 +1714,10 @@ function New-DCConditionalAccessPolicyDesignReport {
 
         # excludeLocation
         $excludeLocations = foreach ($excludeLocation in $Policy.conditions.locations.excludeLocations) {
-            if ($excludeLocation -ne 'All' -and $excludeLocation -ne 'AllTrusted' -and $excludeLocation -ne '00000000-0000-0000-000000000000') {
+            if ($excludeLocation -ne 'All' -and $excludeLocation -ne 'AllTrusted' -and $excludeLocation -ne '00000000-0000-0000-0000-000000000000') {
                 $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/$excludeLocation"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
-            } elseif ($excludeLocation -eq '00000000-0000-0000-000000000000') {
+            } elseif ($excludeLocation -eq '00000000-0000-0000-0000-000000000000') {
                 'MFA Trusted IPs'
             } else {
                 $excludeLocation
