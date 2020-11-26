@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.14
+Version: 1.0.15
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -695,12 +695,15 @@ function Invoke-DCMsGraphQuery {
 
 
         # Invoke REST methods and fetch data until there are no pages left.
-        while ($QueryRequest.'@odata.nextLink') {
-            $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $QueryRequest.'@odata.nextLink' -UseBasicParsing -Method $GraphMethod -ContentType "application/json"
-
-            $QueryResult += $QueryRequest.value
+        if ($GraphUri -notlike "*`$top*") {
+            while ($QueryRequest.'@odata.nextLink') {
+                $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $QueryRequest.'@odata.nextLink' -UseBasicParsing -Method $GraphMethod -ContentType "application/json"
+    
+                $QueryResult += $QueryRequest.value
+            }
         }
         
+
         $QueryResult
     }
     else {
@@ -1282,7 +1285,7 @@ function Export-DCConditionalAccessPolicyDesign {
         [string]$ClientSecret,
 
         [parameter(Mandatory = $false)]
-        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'd').json"
+        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json"
     )
 
 
@@ -1589,7 +1592,7 @@ function New-DCConditionalAccessPolicyDesignReport {
 
         # includeUsers
         $Users = foreach ($User in $Policy.conditions.users.includeUsers) {
-            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers') {
+            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers'-and $User -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/users/$User"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
             } else {
@@ -1602,7 +1605,7 @@ function New-DCConditionalAccessPolicyDesignReport {
 
         # excludeUsers
         $Users = foreach ($User in $Policy.conditions.users.excludeUsers) {
-            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers') {
+            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers'-and $User -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/users/$User"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
             } else {
@@ -1615,7 +1618,7 @@ function New-DCConditionalAccessPolicyDesignReport {
 
         # includeGroups
         $Groups = foreach ($Group in $Policy.conditions.users.includeGroups) {
-            if ($Group -ne 'All') {
+            if ($Group -ne 'All' -and $Group -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/groups/$Group"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
             } else {
@@ -1628,7 +1631,7 @@ function New-DCConditionalAccessPolicyDesignReport {
 
         # excludeGroups
         $Groups = foreach ($Group in $Policy.conditions.users.excludeGroups) {
-            if ($Group -ne 'All') {
+            if ($Group -ne 'All' -and $Group -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/groups/$Group"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
             } else {
@@ -1668,8 +1671,6 @@ function New-DCConditionalAccessPolicyDesignReport {
             }
         }
 
-
-        # excludeApplications
         $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeApplications" -Value (Out-String -InputObject $Applications)
 
 
@@ -1769,7 +1770,7 @@ function New-DCConditionalAccessPolicyDesignReport {
 
     # Export the result to Excel.
     Write-Verbose -Verbose -Message "Exporting report to Excel..."
-    $Path = "$((Get-Location).Path)\Conditional Access Policy Design Report $(Get-Date -Format 'd').xlsx"
+    $Path = "$((Get-Location).Path)\Conditional Access Policy Design Report $(Get-Date -Format 'yyyy-MM-dd').xlsx"
     $Result | Export-Excel -Path $Path -WorksheetName "CA Policies" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -Show
 
 
@@ -1916,7 +1917,7 @@ function New-DCConditionalAccessAssignmentReport {
 
         Write-Verbose -Verbose -Message "Getting include users for policy $($Policy.displayName)..."
         $includeUsersUserPrincipalName = foreach ($Object in $Policy.conditions.users.includeUsers) {
-            if ($Object -ne "All" -and $Object -ne "GuestsOrExternalUsers") {
+            if ($Object -ne "All" -and $Object -ne "GuestsOrExternalUsers" -and $Object -ne "None") {
                 $GraphUri = "https://graph.microsoft.com/v1.0/users/$Object"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction "Continue").userPrincipalName
             }
@@ -1925,7 +1926,7 @@ function New-DCConditionalAccessAssignmentReport {
             }
         }
 
-        if ($Policy.conditions.users.includeUsers -ne "All" -and $Policy.conditions.users.includeUsers -ne "GuestsOrExternalUsers") {
+        if ($Policy.conditions.users.includeUsers -ne "All" -and $Policy.conditions.users.includeUsers -ne "GuestsOrExternalUsers" -and $Policy.conditions.users.includeUsers -ne "None") {
             $CustomObject | Add-Member -MemberType NoteProperty -Name "includeUsersUserPrincipalName" -Value $includeUsersUserPrincipalName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "includeUsersId" -Value $Policy.conditions.users.includeUsers
         }
@@ -1937,7 +1938,7 @@ function New-DCConditionalAccessAssignmentReport {
 
         Write-Verbose -Verbose -Message "Getting exclude users for policy $($Policy.displayName)..."
         $excludeUsersUserPrincipalName = foreach ($Object in $Policy.conditions.users.excludeUsers) {
-            if ($Object -ne "All" -and $Object -ne "GuestsOrExternalUsers") {
+            if ($Object -ne "All" -and $Object -ne "GuestsOrExternalUsers" -and $Object -ne "None") {
                 $GraphUri = "https://graph.microsoft.com/v1.0/users/$Object"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction "Continue").userPrincipalName
             }
@@ -1946,7 +1947,7 @@ function New-DCConditionalAccessAssignmentReport {
             }
         }
 
-        if ($Policy.conditions.users.excludeUsers -ne "All" -and $Policy.conditions.users.excludeUsers -ne "GuestsOrExternalUsers") {
+        if ($Policy.conditions.users.excludeUsers -ne "All" -and $Policy.conditions.users.excludeUsers -ne "GuestsOrExternalUsers" -and $Policy.conditions.users.excludeUsers -ne "None") {
             $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersUserPrincipalName" -Value $excludeUsersUserPrincipalName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersId" -Value $Policy.conditions.users.exludeUsers
         }
@@ -2086,7 +2087,7 @@ function New-DCConditionalAccessAssignmentReport {
 
     # Export the result to Excel.
     Write-Verbose -Verbose -Message "Exporting report to Excel..."
-    $Path = "$((Get-Location).Path)\Conditional Access Assignment Report $(Get-Date -Format 'd').xlsx"
+    $Path = "$((Get-Location).Path)\Conditional Access Assignment Report $(Get-Date -Format 'yyyy-MM-dd').xlsx"
     $Result | Export-Excel -Path $Path -WorksheetName "CA Assignments" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -Show
 
 
