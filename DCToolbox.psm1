@@ -1361,7 +1361,10 @@ function Export-DCConditionalAccessPolicyDesignAsApp {
             Author:   Daniel Chronlund
             GitHub:   https://github.com/DanielChronlund/DCToolbox
             Blog:     https://danielchronlund.com/
-        
+
+            Author:   Adam Gell
+            GitHub:   https://github.com/adamgell
+            
         .EXAMPLE
             $Parameters = @{
                 ClientID = ''
@@ -1627,6 +1630,9 @@ function Import-DCConditionalAccessPolicyDesignAsApp {
             Author:   Daniel Chronlund
             GitHub:   https://github.com/DanielChronlund/DCToolbox
             Blog:     https://danielchronlund.com/
+
+            Author:   Adam Gell
+            GitHub:   https://github.com/adamgell
         
         .EXAMPLE
             $Parameters = @{
