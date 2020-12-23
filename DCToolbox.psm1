@@ -230,6 +230,30 @@ $Parameters = @{
 
 Import-DCConditionalAccessPolicyDesign @Parameters
 
+# Export your Conditional Access policies to a JSON file for backup.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    FilePath = 'C:\Temp\Conditional Access Backup.json'
+    TenantName = 'example.onmicrosoft.com'
+}
+
+Export-DCConditionalAccessPolicyDesignAsApp @Parameters
+
+
+# Import Conditional Access policies from a JSON file exported by Export-DCConditionalAccessPolicyDesign.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    FilePath = 'C:\Temp\Conditional Access Backup.json'
+    SkipReportOnlyMode = $false
+    DeleteAllExistingPolicies = $false
+    TenantName = 'example.onmicrosoft.com'
+}
+
+Import-DCConditionalAccessPolicyDesignAsApp @Parameters
+
+
 
 # Export Conditional Access policy design report to Excel.
 $Parameters = @{
@@ -1364,13 +1388,13 @@ function Export-DCConditionalAccessPolicyDesignAsApp {
 
             Author:   Adam Gell
             GitHub:   https://github.com/adamgell
-            
+
         .EXAMPLE
             $Parameters = @{
                 ClientID = ''
                 ClientSecret = ''
                 FilePath = 'C:\Temp\Conditional Access.json'
-                TenantName = "domain.onmicrosoft.com"
+                TenantName = "example.onmicrosoft.com"
             }
 
             Export-DCConditionalAccessPolicyDesign @Parameters
@@ -1641,7 +1665,7 @@ function Import-DCConditionalAccessPolicyDesignAsApp {
                 FilePath = 'C:\Temp\Conditional Access.json'
                 SkipReportOnlyMode = $false
                 DeleteAllExistingPolicies = $false
-                TenantName = "domain.onmicrosoft.com"
+                TenantName = "example.onmicrosoft.com"
             }
 
             Import-DCConditionalAccessPolicyDesign @Parameters
