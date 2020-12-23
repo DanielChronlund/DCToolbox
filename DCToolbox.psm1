@@ -1285,7 +1285,10 @@ function Export-DCConditionalAccessPolicyDesign {
         [string]$ClientSecret,
 
         [parameter(Mandatory = $false)]
-        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json"
+        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json",
+        
+        [parameter(Mandatory = $true)]
+        [string]$TenantName
     )
 
 
@@ -1298,7 +1301,7 @@ function Export-DCConditionalAccessPolicyDesign {
 
     # Authenticate to Microsoft Graph.
     Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
-    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+    $AccessToken = Connect-DCMsGraphAsApplication -ClientID $ClientID -ClientSecret $ClientSecret -TenantName $TenantName
 
 
     # Export all Conditional Access policies from Microsoft Graph as JSON.
@@ -1405,7 +1408,10 @@ function Import-DCConditionalAccessPolicyDesign {
         [switch]$SkipReportOnlyMode,
 
         [parameter(Mandatory = $false)]
-        [switch]$DeleteAllExistingPolicies
+        [switch]$DeleteAllExistingPolicies,
+        
+        [parameter(Mandatory = $true)]
+        [string]$TenantName
     )
 
 
@@ -1418,7 +1424,7 @@ function Import-DCConditionalAccessPolicyDesign {
 
     # Authenticate to Microsoft Graph.
     Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
-    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+    $AccessToken = Connect-DCMsGraphAsApplication -ClientID $ClientID -ClientSecret $ClientSecret -TenantName $TenantName
 
 
     # Import policies from JSON file.
