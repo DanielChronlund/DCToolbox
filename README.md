@@ -76,6 +76,18 @@ This CMDlet uses Microsoft Graph to export all Conditional Access policies in th
 
 This CMDlet uses Microsoft Graph to automatically create Conditional Access policies from a JSON file. The JSON file can be created from existing policies with Export-DCConditionalAccessPolicyDesign or manually by following the syntax described in the Microsoft Graph documentation.
 
+<h3>Export-DCConditionalAccessPolicyDesignAsApp</h3>
+
+This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign.
+
+This CMDlet is the same as Export-DCConditionalAccessPolicyDesign just uses Application level permissions rather than delegated. 
+
+<h3>Import-DCConditionalAccessPolicyDesignAsApp</h3>
+
+This CMDlet uses Microsoft Graph to automatically create Conditional Access policies from a JSON file. The JSON file can be created from existing policies with Export-DCConditionalAccessPolicyDesign or manually by following the syntax described in the Microsoft Graph documentation.
+
+This CMDlet is the same as Import-DCConditionalAccessPolicyDesign just uses Application level permissions rather than delegated. 
+
 <h3>New-DCConditionalAccessPolicyDesignReport</h3>
 
 Automatically generate an Excel report containing your current Conditional Access policy design.
