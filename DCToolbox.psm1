@@ -230,6 +230,30 @@ $Parameters = @{
 
 Import-DCConditionalAccessPolicyDesign @Parameters
 
+# Export your Conditional Access policies to a JSON file for backup.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    FilePath = 'C:\Temp\Conditional Access Backup.json'
+    TenantName = 'example.onmicrosoft.com'
+}
+
+Export-DCConditionalAccessPolicyDesignAsApp @Parameters
+
+
+# Import Conditional Access policies from a JSON file exported by Export-DCConditionalAccessPolicyDesign.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    FilePath = 'C:\Temp\Conditional Access Backup.json'
+    SkipReportOnlyMode = $false
+    DeleteAllExistingPolicies = $false
+    TenantName = 'example.onmicrosoft.com'
+}
+
+Import-DCConditionalAccessPolicyDesignAsApp @Parameters
+
+
 
 # Export Conditional Access policy design report to Excel.
 $Parameters = @{
@@ -1317,6 +1341,110 @@ function Export-DCConditionalAccessPolicyDesign {
     Write-Verbose -Verbose -Message "Done!"
 }
 
+function Export-DCConditionalAccessPolicyDesignAsApp {
+    <#
+        .SYNOPSIS
+            Export all Conditional Access policies to JSON.
+
+        .DESCRIPTION        
+            This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign. You can treat Conditional Access as code!
+
+            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
+            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+
+            The permissions for this CMDlet must be application versus delegation. 
+
+            The following Microsoft Graph API permissions are required for this script to work:
+                Policy.ReadWrite.ConditionalAccess
+                Policy.Read.All
+                Directory.Read.All
+                Agreement.Read.All
+                Application.Read.All
+            
+            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
+            
+        .PARAMETER ClientID
+            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+        .PARAMETER FilePath
+            The file path where the new JSON file will be created. Skip to use the current path.
+
+        .PARAMETER TenantName
+            The .onmicrosoft.com domain inside your tenant. 
+
+        .INPUTS
+            None
+
+        .OUTPUTS
+            JSON file with all Conditional Access policies.
+
+        .NOTES
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
+
+        .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+                TenantName = "example.onmicrosoft.com"
+            }
+
+            Export-DCConditionalAccessPolicyDesign @Parameters
+    #>
+
+
+
+    # ----- [Initialisations] -----
+
+    # Script parameters.
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$ClientID,
+
+        [parameter(Mandatory = $true)]
+        [string]$ClientSecret,
+
+        [parameter(Mandatory = $false)]
+        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json",
+        
+        [parameter(Mandatory = $true)]
+        [string]$TenantName
+    )
+
+
+    # Set Error Action - Possible choices: Stop, SilentlyContinue
+    $ErrorActionPreference = "Stop"
+
+
+
+    # ----- [Execution] -----
+
+    # Authenticate to Microsoft Graph.
+    Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
+    $AccessToken = Connect-DCMsGraphAsApplication -ClientID $ClientID -ClientSecret $ClientSecret -TenantName $TenantName
+
+
+    # Export all Conditional Access policies from Microsoft Graph as JSON.
+    Write-Verbose -Verbose -Message "Exporting Conditional Access policies to '$FilePath'..."
+    
+    $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
+
+    Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Sort-Object createdDateTime | ConvertTo-Json -Depth 10 | Out-File -Force:$true -FilePath $FilePath
+
+    # Perform some clean up in the file.
+    $CleanUp = Get-Content $FilePath | Select-String -Pattern '"id":', '"createdDateTime":', '"modifiedDateTime":' -notmatch
+
+    $CleanUp | Out-File -Force:$true -FilePath $FilePath
+
+
+    Write-Verbose -Verbose -Message "Done!"
+}
+
 
 
 function Import-DCConditionalAccessPolicyDesign {
@@ -1405,7 +1533,10 @@ function Import-DCConditionalAccessPolicyDesign {
         [switch]$SkipReportOnlyMode,
 
         [parameter(Mandatory = $false)]
-        [switch]$DeleteAllExistingPolicies
+        [switch]$DeleteAllExistingPolicies,
+        
+        [parameter(Mandatory = $true)]
+        [string]$TenantName
     )
 
 
@@ -1418,7 +1549,7 @@ function Import-DCConditionalAccessPolicyDesign {
 
     # Authenticate to Microsoft Graph.
     Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
-    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+    $AccessToken = Connect-DCMsGraphAsApplication -ClientID $ClientID -ClientSecret $ClientSecret -TenantName $TenantName
 
 
     # Import policies from JSON file.
@@ -1470,7 +1601,156 @@ function Import-DCConditionalAccessPolicyDesign {
     Write-Verbose -Verbose -Message "Done!"
 }
 
+function Import-DCConditionalAccessPolicyDesignAsApp {
+    <#
+         .SYNOPSIS
+            Export all Conditional Access policies to JSON.
 
+        .DESCRIPTION        
+            This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign. You can treat Conditional Access as code!
+
+            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
+            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+
+            The permissions for this CMDlet must be application versus delegation. 
+
+            The following Microsoft Graph API permissions are required for this script to work:
+                Policy.ReadWrite.ConditionalAccess
+                Policy.Read.All
+                Directory.Read.All
+                Agreement.Read.All
+                Application.Read.All
+            
+            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
+
+        .PARAMETER ClientID
+            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+        .PARAMETER FilePath
+            The file path of the JSON file containing your Conditional Access policies.
+
+        .PARAMETER SkipReportOnlyMode
+            All Conditional Access policies created by this CMDlet will be set to report-only mode if you don't use this parameter.
+
+        .PARAMETER DeleteAllExistingPolicies
+            WARNING: If you want to, you can delete all existing policies when deploying your new ones with -DeleteAllExistingPolicies, Use this parameter with causon and allways create a backup with Export-DCConditionalAccessPolicyDesign first!!
+            
+        .PARAMETER TenantName
+            The .onmicrosoft.com domain inside your tenant. 
+
+        .INPUTS
+            JSON file containing your Conditional Access policies.
+
+        .OUTPUTS
+            None
+
+        .NOTES
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
+        
+        .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+                SkipReportOnlyMode = $false
+                DeleteAllExistingPolicies = $false
+                TenantName = "example.onmicrosoft.com"
+            }
+
+            Import-DCConditionalAccessPolicyDesign @Parameters
+    #>
+
+
+
+    # ----- [Initialisations] -----
+
+    # Script parameters.
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$ClientID,
+
+        [parameter(Mandatory = $true)]
+        [string]$ClientSecret,
+
+        [parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [parameter(Mandatory = $false)]
+        [switch]$SkipReportOnlyMode,
+
+        [parameter(Mandatory = $false)]
+        [switch]$DeleteAllExistingPolicies,
+        
+        [parameter(Mandatory = $true)]
+        [string]$TenantName
+    )
+
+
+    # Set Error Action - Possible choices: Stop, SilentlyContinue
+    $ErrorActionPreference = "Stop"
+
+
+
+    # ----- [Execution] -----
+
+    # Authenticate to Microsoft Graph.
+    Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
+    $AccessToken = Connect-DCMsGraphAsApplication -ClientID $ClientID -ClientSecret $ClientSecret -TenantName $TenantName
+
+
+    # Import policies from JSON file.
+    Write-Verbose -Verbose -Message "Importing JSON from '$FilePath'..."
+    $ConditionalAccessPolicies = Get-Content -Raw -Path $FilePath
+
+
+    # Modify enabled policies to report-only if not skipped with -SkipReportOnlyMode.
+    if (!($SkipReportOnlyMode)) {
+        Write-Verbose -Verbose -Message "Setting all new policys to report-only mode..."
+        $ConditionalAccessPolicies = $ConditionalAccessPolicies -replace '"enabled"', '"enabledForReportingButNotEnforced"'
+    }
+
+
+    # Delete all existing policies if -DeleteAllExistingPolicies is specified.
+    if ($DeleteAllExistingPolicies) {
+        Write-Verbose -Verbose -Message "Deleting all existing Conditional Access policies..."
+        $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
+        $ExistingPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+
+        foreach ($Policy in $ExistingPolicies) {
+            Start-Sleep -Seconds 1
+            $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$($Policy.id)"
+
+            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri | Out-Null
+        }
+    }
+
+
+    # URI for creating Conditional Access policies.
+    $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
+
+    $ConditionalAccessPolicies = $ConditionalAccessPolicies | ConvertFrom-Json
+
+    foreach ($Policy in $ConditionalAccessPolicies) {
+        Start-Sleep -Seconds 1
+        Write-Verbose -Verbose -Message "Creating '$($Policy.DisplayName)'..."
+
+        try {
+            # Create new policies.
+            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody ($Policy | ConvertTo-Json -Depth 10) | Out-Null
+        }
+        catch {
+            Write-Error -Message $_.Exception.Message -ErrorAction Continue
+        }
+    }
+
+
+    Write-Verbose -Verbose -Message "Done!"
+}
 
 function New-DCConditionalAccessPolicyDesignReport {
     <#
@@ -2097,3 +2377,4 @@ function New-DCConditionalAccessAssignmentReport {
 
     # ----- [End] -----
 }
+
