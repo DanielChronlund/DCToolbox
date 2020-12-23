@@ -1285,6 +1285,107 @@ function Export-DCConditionalAccessPolicyDesign {
         [string]$ClientSecret,
 
         [parameter(Mandatory = $false)]
+        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json"
+    )
+
+
+    # Set Error Action - Possible choices: Stop, SilentlyContinue
+    $ErrorActionPreference = "Stop"
+
+
+
+    # ----- [Execution] -----
+
+    # Authenticate to Microsoft Graph.
+    Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
+    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+
+
+    # Export all Conditional Access policies from Microsoft Graph as JSON.
+    Write-Verbose -Verbose -Message "Exporting Conditional Access policies to '$FilePath'..."
+    
+    $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
+
+    Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Sort-Object createdDateTime | ConvertTo-Json -Depth 10 | Out-File -Force:$true -FilePath $FilePath
+
+    # Perform some clean up in the file.
+    $CleanUp = Get-Content $FilePath | Select-String -Pattern '"id":', '"createdDateTime":', '"modifiedDateTime":' -notmatch
+
+    $CleanUp | Out-File -Force:$true -FilePath $FilePath
+
+
+    Write-Verbose -Verbose -Message "Done!"
+}
+
+function Export-DCConditionalAccessPolicyDesignAsApp {
+    <#
+        .SYNOPSIS
+            Export all Conditional Access policies to JSON.
+
+        .DESCRIPTION        
+            This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign. You can treat Conditional Access as code!
+
+            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
+            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+
+            The permissions for this CMDlet must be application versus delegation. 
+
+            The following Microsoft Graph API permissions are required for this script to work:
+                Policy.ReadWrite.ConditionalAccess
+                Policy.Read.All
+                Directory.Read.All
+                Agreement.Read.All
+                Application.Read.All
+            
+            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
+            
+        .PARAMETER ClientID
+            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+
+        .PARAMETER FilePath
+            The file path where the new JSON file will be created. Skip to use the current path.
+
+        .PARAMETER TenantName
+            The .onmicrosoft.com domain inside your tenant. 
+
+        .INPUTS
+            None
+
+        .OUTPUTS
+            JSON file with all Conditional Access policies.
+
+        .NOTES
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
+        
+        .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+                TenantName = "domain.onmicrosoft.com"
+            }
+
+            Export-DCConditionalAccessPolicyDesign @Parameters
+    #>
+
+
+
+    # ----- [Initialisations] -----
+
+    # Script parameters.
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$ClientID,
+
+        [parameter(Mandatory = $true)]
+        [string]$ClientSecret,
+
+        [parameter(Mandatory = $false)]
         [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json",
         
         [parameter(Mandatory = $true)]
