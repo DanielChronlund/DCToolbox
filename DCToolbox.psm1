@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.15
+Version: 1.0.16
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -189,6 +189,10 @@ help Invoke-DCMsGraphQuery -Full
 '@
 
                 Set-Clipboard $Snippet
+
+                Write-Host -ForegroundColor "Yellow" ""
+                Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+                Write-Host -ForegroundColor "Yellow" ""
             }
             2 {
                 $Snippet = @'
@@ -259,6 +263,10 @@ help New-DCConditionalAccessAssignmentReport -Full
 '@
 
                 Set-Clipboard $Snippet
+
+                Write-Host -ForegroundColor "Yellow" ""
+                Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+                Write-Host -ForegroundColor "Yellow" ""
             }
             3 {
                 $Snippet = @'
@@ -298,6 +306,10 @@ help Enable-DCAzureADPIMRole -Full
 '@
 
                 Set-Clipboard $Snippet
+
+                Write-Host -ForegroundColor "Yellow" ""
+                Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+                Write-Host -ForegroundColor "Yellow" ""
             }
             4 {
                 $Snippet = @'
@@ -411,6 +423,202 @@ function1 -Parameter1 'Test'
 '@
 
                 Set-Clipboard $Snippet
+
+                Write-Host -ForegroundColor "Yellow" ""
+                Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+                Write-Host -ForegroundColor "Yellow" ""
+            }
+            5 {
+                $Snippet = @'
+# README: This script is an example of what you might want to/need to do if your Azure AD has been breached. This script was created in the spirit of the zero trust assume breach methodology. The idea is that if you detect that attackers are already on the inside, then you must try to kick them out. This requires multiple steps and you also must handle other resources like your on-prem AD. However, this script example helps you in the right direction when it comes to Azure AD admin roles.
+
+# More info on my blog: https://danielchronlund.com/2021/03/29/my-azure-ad-has-been-breached-what-now/
+
+break
+
+
+
+# *** Connect to Azure AD ***
+Import-Module AzureADPreview
+Connect-AzureAD
+
+
+
+# *** Interesting Azure AD roles to inspect ***
+$InterestingDirectoryRoles = 'Global Administrator',
+'Global Reader',
+'Privileged Role Administrator',
+'Security Administrator',
+'Application Administrator',
+'Compliance Administrator'
+
+
+
+# *** Inspect current Azure AD admins (if you use Azure AD PIM) ***
+
+# Fetch tenant ID.
+$TenantID = (Get-AzureADTenantDetail).ObjectId
+
+# Fetch all Azure AD role definitions.
+$AzureADRoleDefinitions = Get-AzureADMSPrivilegedRoleDefinition -ProviderId "aadRoles" -ResourceId $TenantID | Where-Object { $_.DisplayName -in $InterestingDirectoryRoles }
+
+# Fetch all Azure AD PIM role assignments.
+$AzureADDirectoryRoleAssignments = Get-AzureADMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $TenantID | Where-Object { $_.RoleDefinitionId -in $AzureADRoleDefinitions.Id }
+
+# Fetch Azure AD role members for each role and format as custom object.
+$AzureADDirectoryRoleMembers = foreach ($AzureADDirectoryRoleAssignment in $AzureADDirectoryRoleAssignments) {
+    $UserAccountDetails = Get-AzureAdUser -ObjectId $AzureADDirectoryRoleAssignment.SubjectId
+
+    $LastLogon = (Get-AzureAdAuditSigninLogs -top 1 -filter "UserId eq '$($AzureADDirectoryRoleAssignment.SubjectId)'" | Select-Object CreatedDateTime).CreatedDateTime
+
+    if ($LastLogon) {
+        $LastLogon = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date -Date $LastLogon), (Get-TimeZone).Id)
+    }
+
+    $CustomObject = New-Object -TypeName psobject
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "AzureADDirectoryRole" -Value ($AzureADRoleDefinitions | Where-Object { $_.Id -eq $AzureADDirectoryRoleAssignment.RoleDefinitionId }).DisplayName
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $UserAccountDetails.ObjectID
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $UserAccountDetails.DisplayName
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $UserAccountDetails.UserPrincipalName
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "AssignmentState" -Value $AzureADDirectoryRoleAssignment.AssignmentState
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "AccountCreated" -Value $UserAccountDetails.ExtensionProperty.createdDateTime
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "LastLogon" -Value $LastLogon
+    $CustomObject
+}
+
+# List all Azure AD role members (newest first).
+$AzureADDirectoryRoleMembers | Sort-Object AccountCreated -Descending | Format-Table
+
+
+
+# *** Inspect current Azure AD admins (only if you do NOT use Azure AD PIM) ***
+
+# Interesting Azure AD roles to inspect.
+$InterestingDirectoryRoles = 'Global Administrator',
+'Global Reader',
+'Privileged Role Administrator',
+'Security Administrator',
+'Application Administrator',
+'Compliance Administrator'
+
+# Fetch Azure AD role details.
+$AzureADDirectoryRoles = Get-AzureADDirectoryRole | Where-Object { $_.DisplayName -in $InterestingDirectoryRoles }
+
+# Fetch Azure AD role members for each role and format as custom object.
+$AzureADDirectoryRoleMembers = foreach ($AzureADDirectoryRole in $AzureADDirectoryRoles) {
+    $RoleAssignments = Get-AzureADDirectoryRoleMember -ObjectId $AzureADDirectoryRole.ObjectId
+
+    foreach ($RoleAssignment in $RoleAssignments) {
+        $LastLogon = (Get-AzureAdAuditSigninLogs -top 1 -filter "UserId eq '$($RoleAssignment.ObjectId)'" | Select-Object CreatedDateTime).CreatedDateTime
+
+        if ($LastLogon) {
+            $LastLogon = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date -Date $LastLogon), (Get-TimeZone).Id)
+        }
+
+        $CustomObject = New-Object -TypeName psobject
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "AzureADDirectoryRole" -Value $AzureADDirectoryRole.DisplayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $RoleAssignment.ObjectID
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $RoleAssignment.DisplayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $RoleAssignment.UserPrincipalName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "AccountCreated" -Value $RoleAssignment.ExtensionProperty.createdDateTime
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "LastLogon" -Value $LastLogon
+        $CustomObject
+    }
+}
+
+# List all Azure AD role members (newest first).
+$AzureADDirectoryRoleMembers | Sort-Object AccountCreated -Descending | Format-Table
+
+
+
+# *** Check if admin accounts are synced from on-prem (bad security) ***
+
+# Loop through the admins from previous output and fetch sync status.
+$SyncedAdmins = foreach ($AzureADDirectoryRoleMember in $AzureADDirectoryRoleMembers) {
+    $IsSynced = (Get-AzureADUser -ObjectId $AzureADDirectoryRoleMember.UserID | Where-Object {$_.DirSyncEnabled -eq $true}).DirSyncEnabled
+
+    $CustomObject = New-Object -TypeName psobject
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $AzureADDirectoryRoleMember.UserID
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $AzureADDirectoryRoleMember.UserAccount
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $AzureADDirectoryRoleMember.UserPrincipalName
+
+    if ($IsSynced) {
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "SyncedOnPremAccount" -Value 'True'
+    } else {
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "SyncedOnPremAccount" -Value 'False'
+    }
+    
+    $CustomObject
+}
+
+# List admins (synced on-prem accounts first).
+$SyncedAdmins | Sort-Object UserPrincipalName -Descending -Unique | Sort-Object SyncedOnPremAccount -Descending | Format-Table
+
+
+
+# *** ON-PREM SYNC PANIC BUTTON: Block all Azure AD admin accounts that are synced from on-prem ***
+# WARNING: Make sure you understand what you're doing before running this script!
+
+# Loop through admins synced from on-prem and block sign-ins.
+foreach ($SyncedAdmin in ($SyncedAdmins | Where-Object { $_.SyncedOnPremAccount -eq 'True' })) {
+    Set-AzureADUser -ObjectID $SyncedAdmin.UserID -AccountEnabled $false
+}
+
+# Check account status.
+foreach ($SyncedAdmin in ($SyncedAdmins | Where-Object { $_.SyncedOnPremAccount -eq 'True' })) {
+    Get-AzureADUser -ObjectID $SyncedAdmin.UserID | Select-Object userPrincipalName, AccountEnabled
+}
+
+
+
+# *** Check admins last password set time ***
+
+# Connect to Microsoft online services.
+Connect-MsolService
+
+# Loop through the admins from previous output and fetch LastPasswordChangeTimeStamp.
+$AdminPasswordChanges = foreach ($AzureADDirectoryRoleMember in ($AzureADDirectoryRoleMembers| Sort-Object UserID -Unique)) {
+    $LastPasswordChangeTimeStamp = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date -Date (Get-MsolUser -ObjectId $AzureADDirectoryRoleMember.UserID | Select-Object LastPasswordChangeTimeStamp).LastPasswordChangeTimeStamp), (Get-TimeZone).Id)
+
+    $CustomObject = New-Object -TypeName psobject
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $AzureADDirectoryRoleMember.UserID
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $AzureADDirectoryRoleMember.UserAccount
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $AzureADDirectoryRoleMember.UserPrincipalName
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "LastPasswordChangeTimeStamp" -Value $LastPasswordChangeTimeStamp
+    $CustomObject
+}
+
+# List admins (newest passwords first).
+$AdminPasswordChanges | Sort-Object LastPasswordChangeTimeStamp -Descending | Format-Table
+
+
+
+# *** ADMIN PASSWORD PANIC BUTTON: Reset passwords for all Azure AD admins (except for current user and break glass accounts) ***
+# WARNING: Make sure you understand what you're doing before running this script!
+
+# IMPORTANT: Define your break glass accounts.
+$BreakGlassAccounts = 'exidacloud-15437@exidacloud.onmicrosoft.com', 'exidacloud-17343@exidacloud.onmicrosoft.com'
+
+# The current user running PowerShell against Azure AD.
+$CurrentUser = (Get-AzureADCurrentSessionInfo).Account.Id
+
+# Loop through admins and set new complex passwords (using generated GUIDs).
+foreach ($AzureADDirectoryRoleMember in ($AzureADDirectoryRoleMembers | Sort-Object UserPrincipalName -Unique)) {
+    if ($AzureADDirectoryRoleMember.UserPrincipalName -notin $BreakGlassAccounts -and $AzureADDirectoryRoleMember.UserPrincipalName -ne $CurrentUser) {
+        Write-Verbose -Verbose -Message "Setting new password for $($AzureADDirectoryRoleMember.UserPrincipalName)..."
+        Set-AzureADUserPassword -ObjectId $AzureADDirectoryRoleMember.UserID -Password (ConvertTo-SecureString (New-Guid).Guid -AsPlainText -Force)
+    } else {
+        Write-Verbose -Verbose -Message "Skipping $($AzureADDirectoryRoleMember.UserPrincipalName)!"
+    }
+}
+
+'@
+
+                Set-Clipboard $Snippet
+
+                Write-Host -ForegroundColor "Yellow" ""
+                Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+                Write-Host -ForegroundColor "Yellow" ""
             }
             100 {
                 $Snippet = @'
@@ -419,21 +627,23 @@ X
 '@
 
                 Set-Clipboard $Snippet
+
+                Write-Host -ForegroundColor "Yellow" ""
+                Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+                Write-Host -ForegroundColor "Yellow" ""
             }
             0 {
                 break 
+            } default {
+                break
             }
         }
-
-        Write-Host -ForegroundColor "Yellow" ""
-        Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
-        Write-Host -ForegroundColor "Yellow" ""
     }
 	
 
     # Create example menu.
-    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Azure AD Privileged Identity Management (PIM) role", "General PowerShell script template"
-	
+    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Azure AD Privileged Identity Management (PIM) role", "General PowerShell script template", "Azure AD Security Breach Kick-Out Process"
+    
 
     # Handle menu choice.
     HandleMenuChoice -MenuChoice $Choice
@@ -1222,6 +1432,72 @@ function Test-DCAzureAdCommonAdmins {
 
 
 
+function Test-DCLegacyAuthentication {
+	<#
+        .SYNOPSIS
+            Test if legacy authentication is allowed in Office 365 for a particular user.
+        
+        .DESCRIPTION
+            This CMDlet lets you test if legacy authentication is allowed in Office 365. It uses an older reporting endpoints to test the authentication.
+
+            Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Azure AD configuration.
+        
+        .PARAMETER Credential
+            The Azure AD credentials to test.
+        
+        .EXAMPLE
+            Test-DCLegacyAuthentication
+
+        .EXAMPLE
+            Test-DCLegacyAuthentication -Credential $Cred
+
+        .EXAMPLE
+            if (Test-DCLegacyAuthentication -Credential $Cred) { 'Legacy authentication is allowed :(' }
+        
+        .INPUTS
+            PSCredential
+
+        .OUTPUTS
+            None
+        
+        .NOTES
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
+	#>
+
+
+	param (
+		[parameter(Mandatory = $true)]
+		[PSCredential]$Credential
+	)
+
+
+    try {
+        Write-Verbose -Verbose -Message "Testing legacy authentication for $($Credential.UserName)..."
+        Invoke-WebRequest -Uri "https://reports.office365.com/ecp/reportingwebservice/reporting.svc" -Credential $Credential | Out-Null
+
+
+        Write-Host -ForegroundColor 'Red' "ALLOWED: Legacy authentication is allowed for $($Credential.UserName) in Office 365! This is very dangerous!"
+
+
+        # Return true if legacy authentication is allowed..
+        $true
+    } catch {
+        if ($_.ErrorDetails.Message -like "*401*" -or $_.ErrorDetails.Message -like "*403*") {
+            Write-Host -ForegroundColor 'Green' "AUTHENTICATION FAILED: Legacy authentication failed for $($Credential.UserName) in Office 365!"
+        } else {
+            Write-Error $_.ErrorDetails.Message
+        }
+
+
+        # Return false if legacy authentication is blocked..
+        $false
+    }
+}
+
+
+
 function Export-DCConditionalAccessPolicyDesign {
     <#
         .SYNOPSIS
@@ -1437,7 +1713,7 @@ function Import-DCConditionalAccessPolicyDesign {
     if ($DeleteAllExistingPolicies) {
         Write-Verbose -Verbose -Message "Deleting all existing Conditional Access policies..."
         $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
-        $ExistingPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+        $ExistingPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction Continue
 
         foreach ($Policy in $ExistingPolicies) {
             Start-Sleep -Seconds 1

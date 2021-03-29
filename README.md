@@ -68,6 +68,10 @@ Test if an account exists in Azure AD for specified email addresses.
 
 Test if common and easily guessed admin usernames exist for specified Azure AD domains.
 
+<h3>Test-DCLegacyAuthentication</h3>
+
+Test if legacy authentication is allowed in Office 365 for a particular user.
+
 <h3>Export-DCConditionalAccessPolicyDesign</h3>
 
 This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign.
