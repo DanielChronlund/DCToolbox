@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.16
+Version: 1.0.17
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -597,7 +597,7 @@ $AdminPasswordChanges | Sort-Object LastPasswordChangeTimeStamp -Descending | Fo
 # WARNING: Make sure you understand what you're doing before running this script!
 
 # IMPORTANT: Define your break glass accounts.
-$BreakGlassAccounts = 'exidacloud-15437@exidacloud.onmicrosoft.com', 'exidacloud-17343@exidacloud.onmicrosoft.com'
+$BreakGlassAccounts = 'breakglass1@example.onmicrosoft.com', 'breakglass2@example.onmicrosoft.com'
 
 # The current user running PowerShell against Azure AD.
 $CurrentUser = (Get-AzureADCurrentSessionInfo).Account.Id
