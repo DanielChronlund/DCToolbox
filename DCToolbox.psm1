@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.17
+Version: 1.0.18
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -1853,6 +1853,11 @@ function New-DCConditionalAccessPolicyDesignReport {
     $EnterpriseApps = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
 
 
+    # Fetch roles for id translation.
+    $GraphUri = 'https://graph.microsoft.com/beta/directoryRoles'
+    $AzureADRoles = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+
+
     # Format the result.
     $Result = foreach ($Policy in $CAPolicies) {
         $CustomObject = New-Object -TypeName psobject
@@ -1919,11 +1924,39 @@ function New-DCConditionalAccessPolicyDesignReport {
 
 
         # includeRoles
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeRoles" -Value (Out-String -InputObject $Policy.conditions.users.includeRoles)
+        $Roles = foreach ($Role in $Policy.conditions.users.includeRoles) {
+            if ($Role -ne 'None' -and $Role -ne 'All') {
+                $RoleToCheck = ($AzureADRoles | Where-Object { $_.roleTemplateId -eq $Role }).displayName
+
+                if ($RoleToCheck) {
+                    $RoleToCheck
+                } else {
+                    $Role
+                }
+            } else {
+                $Role
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeRoles" -Value (Out-String -InputObject $Roles)
 
 
         # excludeRoles
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeRoles" -Value (Out-String -InputObject $Policy.conditions.users.excludeRoles)
+        $Roles = foreach ($Role in $Policy.conditions.users.excludeRoles) {
+            if ($Role -ne 'None' -and $Role -ne 'All') {
+                $RoleToCheck = ($AzureADRoles | Where-Object { $_.roleTemplateId -eq $Role }).displayName
+
+                if ($RoleToCheck) {
+                    $RoleToCheck
+                } else {
+                    $Role
+                }
+            } else {
+                $Role
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeRoles" -Value (Out-String -InputObject $Roles)
 
 
         # includeApplications
@@ -2232,6 +2265,39 @@ function New-DCConditionalAccessAssignmentReport {
             $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeUsersId" -Value $Policy.conditions.users.exludeUsers
         }
 
+
+        Write-Verbose -Verbose -Message "Getting include roles for policy $($Policy.displayName)..."
+        $includeRolesDisplayName = foreach ($Object in $Policy.conditions.users.includeRoles) {
+            $GraphUri = "https://graph.microsoft.com/v1.0/directoryRoles/roleTemplateId=$Object"
+            $RoleInfo = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+            
+            if ($RoleInfo.displayName) {
+                $RoleInfo.displayName
+            } else {
+                $Object
+            }
+        }
+        
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeRolesDisplayName" -Value $includeRolesDisplayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeRolesId" -Value $Policy.conditions.users.includeRoles
+
+
+        Write-Verbose -Verbose -Message "Getting exclude roles for policy $($Policy.displayName)..."
+        $excludeRolesDisplayName = foreach ($Object in $Policy.conditions.users.excludeRoles) {
+            $GraphUri = "https://graph.microsoft.com/v1.0/directoryRoles/roleTemplateId=$Object"
+            $RoleInfo = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+            
+            if ($RoleInfo.displayName) {
+                $RoleInfo.displayName
+            } else {
+                $Object
+            }
+        }
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeRolesDisplayName" -Value $excludeRolesDisplayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeRolesId" -Value $Policy.conditions.users.excludeRoles
+
+
         $CustomObject
     }
 
@@ -2321,6 +2387,20 @@ function New-DCConditionalAccessAssignmentReport {
         }
 
 
+        # Format include roles.
+        [string]$includeRoles = foreach ($Role in ($Policy.includeRolesDisplayName | Sort-Object)) {
+            "$Role`r`n"
+        }
+
+        if ($includeRoles.Length -gt 1) {
+            $includeRoles = $includeRoles.Substring(0, "$includeRoles".Length - 1)
+        }
+
+        [string]$includeRoles = [string]$includeRoles -replace "`r`n ", "`r`n"
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "includeRoles" -Value $includeRoles
+
+
         # Format exclude groups.
         [string]$excludeGroups = foreach ($Group in ($Policy.excludeGroupsDisplayName | Sort-Object)) {
             "$Group`r`n"
@@ -2354,6 +2434,20 @@ function New-DCConditionalAccessAssignmentReport {
         foreach ($User in ($Policy.excludeUsersUserPrincipalName | Sort-Object)) {
             $excludeUsers = "$excludeUsers`r`n$User"
         }
+
+
+        # Format exlude roles.
+        [string]$exludeRoles = foreach ($Role in ($Policy.excludeRolesDisplayName | Sort-Object)) {
+            "$Role`r`n"
+        }
+
+        if ($exludeRoles.Length -gt 1) {
+            $exludeRoles = $exludeRoles.Substring(0, "$exludeRoles".Length - 1)
+        }
+
+        [string]$exludeRoles = [string]$exludeRoles -replace "`r`n ", "`r`n"
+
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "exludeRoles" -Value $exludeRoles
 
 
         # Output the result.
