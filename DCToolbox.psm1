@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.18
+Version: 1.0.19
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -932,6 +932,9 @@ function Enable-DCAzureADPIMRole {
             Uses the Azure AD Preview module and the MSAL module to activate a user selected Azure AD role in Azure AD Privileged Identity Management (PIM) with PowerShell. It uses MSAL to force an MFA prompt, even if not required. This is needed because PIM role activation often requires MFA approval.
 
             During activation, the user will be primpted to specify a reason for the activation.
+        
+        .PARAMETER RolesToActivate
+            This parameter is optional but if you specify it, you can select multiple roles to activate at ones.
             
         .INPUTS
             None
@@ -941,17 +944,23 @@ function Enable-DCAzureADPIMRole {
 
         .NOTES
             Author:   Daniel Chronlund
-            GitHub:      https://github.com/DanielChronlund/DCToolbox
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
             Blog:     https://danielchronlund.com/
         
         .EXAMPLE
             Enable-DCAzureADPIMRole
+
+        .EXAMPLE
+            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
     #>
 
+    param (
+        [parameter(Mandatory = $false)]
+        [array]$RolesToActivate = @()
+    )
 
     # Set Error Action - Possible choices: Stop, SilentlyContinue
     $ErrorActionPreference = "Stop"
-
 
     # Check if the Azure AD Preview module is installed.
     if (Get-Module -ListAvailable -Name "AzureADPreview") {
@@ -961,7 +970,6 @@ function Enable-DCAzureADPIMRole {
         Write-Error -Exception "The Azure AD Preview PowerShell module is not installed. Please, run 'Install-Module AzureADPreview' as an admin and try again." -ErrorAction Stop
     }
 
-
     # Check if the MSAL module is installed.
     if (Get-Module -ListAvailable -Name "msal.ps") {
         # Do nothing.
@@ -970,22 +978,20 @@ function Enable-DCAzureADPIMRole {
         Write-Error -Exception "The MSAL module is not installed. Please, run 'Install-Package msal.ps' as an admin and try again." -ErrorAction Stop
     }
 
-
     # Make sure AzureADPreview is the loaded PowerShell module even if AzureAD is installed.
     Remove-Module AzureAD -ErrorAction SilentlyContinue
     Import-Module AzureADPreview
 
-
     # Function to check if there already is an active Azure AD session.
     function AzureAdConnected {
         try {
-            $Var = Get-AzureADTenantDetail 
+            $Var = Get-AzureADTenantDetail
+            $true
         } 
         catch {
             $false
         }
     }
-
 
     # Check if already connected to Azure AD.
     if (!(AzureAdConnected)) {
@@ -994,10 +1000,10 @@ function Enable-DCAzureADPIMRole {
         Write-Verbose -Verbose -Message 'Connecting to Azure AD...'
 
         # Get token for MS Graph by prompting for MFA.
-        $MsResponse = Get-MsalToken -Scopes @("https://graph.microsoft.com/.default") -ClientId "1b730954-1685-4b74-9bfd-dac224a7b894" -RedirectUri "urn:ietf:wg:oauth:2.0:oob" -Authority "https://login.microsoftonline.com/common" -Interactive -ExtraQueryParameters @{claims = '{"access_token" : {"amr": { "values": ["mfa"] }}}' }
+        $MsResponse = Get-MsalToken -Scopes @('https://graph.microsoft.com/.default') -ClientId "1b730954-1685-4b74-9bfd-dac224a7b894" -RedirectUri "urn:ietf:wg:oauth:2.0:oob" -Authority 'https://login.microsoftonline.com/common' -Interactive -ExtraQueryParameters @{claims = '{"access_token" : {"amr": { "values": ["mfa"] }}}' }
 
         # Get token for AAD Graph.
-        $AadResponse = Get-MsalToken -Scopes @("https://graph.windows.net/.default") -ClientId "1b730954-1685-4b74-9bfd-dac224a7b894" -RedirectUri "urn:ietf:wg:oauth:2.0:oob" -Authority "https://login.microsoftonline.com/common"
+        $AadResponse = Get-MsalToken -Scopes @('https://graph.windows.net/.default') -ClientId "1b730954-1685-4b74-9bfd-dac224a7b894" -RedirectUri "urn:ietf:wg:oauth:2.0:oob" -Authority 'https://login.microsoftonline.com/common'
 
         $AccountId = $AadResponse.Account.HomeAccountId.ObjectId
         $TenantId = $AadResponse.Account.HomeAccountId.TenantId
@@ -1005,23 +1011,21 @@ function Enable-DCAzureADPIMRole {
         Connect-AzureAD -AadAccessToken $AadResponse.AccessToken -MsAccessToken $MsResponse.AccessToken -AccountId $AccountId -TenantId:  $TenantId | Out-Null
     }
 
-
     # Fetch session information.
     $AzureADCurrentSessionInfo = Get-AzureADCurrentSessionInfo
 
     # Fetch current user object ID.
     $CurrentAccountId = $AzureADCurrentSessionInfo.Account.Id
+    $CurrentAccountId = (Get-AzureADUser -ObjectId $CurrentAccountId).ObjectId
 
     # Fetch all Azure AD role definitions.
     $AzureADMSPrivilegedRoleDefinition = Get-AzureADMSPrivilegedRoleDefinition -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId.Guid
-
 
     # Fetch all Azure AD role settings.
     $AzureADMSPrivilegedRoleSetting = Get-AzureADMSPrivilegedRoleSetting -ProviderId 'aadRoles' -Filter "ResourceId eq '$($AzureADCurrentSessionInfo.TenantId)'"
 
     # Fetch all PIM role assignments for the current user.
-    $AzureADMSPrivilegedRoleAssignment = Get-AzureADMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $AzureADCurrentSessionInfo.TenantId -Filter "subjectId eq '$CurrentAccountId'" | Where-Object { $_.AssignmentState -eq 'Eligible' }
-
+    $AzureADMSPrivilegedRoleAssignment = Get-AzureADMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $AzureADCurrentSessionInfo.TenantId -Filter "SubjectId eq '$CurrentAccountId'" | Where-Object { $_.AssignmentState -eq 'Eligible' }
 
     # Exit if no roles are found.
     if ($AzureADMSPrivilegedRoleAssignment.Count -eq 0) {
@@ -1029,7 +1033,6 @@ function Enable-DCAzureADPIMRole {
         Write-Verbose -Verbose -Message 'Found no eligible PIM roles to activate :('
         break
     }
-
 
     # Format the fetched information.
     $CurrentAccountRoles = foreach ($RoleAssignment in ($AzureADMSPrivilegedRoleAssignment | Select-Object -Unique)) {
@@ -1043,76 +1046,89 @@ function Enable-DCAzureADPIMRole {
         $CustomObject
     }
 
-
-    # Create a menu and prompt the user for role selection.
-
-    # Create a counter.
-    $Counter = 1
     
     # Write menu title.
     Write-Host -ForegroundColor "Yellow" ""
     Write-Host -ForegroundColor "Yellow" "*** Activate PIM Role ***"
     Write-Host -ForegroundColor "Yellow" ""
-    
-    # Generate the menu choices.
-    foreach ($DisplayName in $CurrentAccountRoles.DisplayName) {
-        Write-Host -ForegroundColor "Yellow" "[$Counter] $DisplayName"
+
+    # Check if parameter was specified, and if that is true, enable all roles.
+    if(!($RolesToActivate)) {
+        # Create a menu and prompt the user for role selection.
+
+        # Create a counter.
+        $Counter = 1
         
-        # Add to counter.
-        $Counter = $Counter + 1
+        # Generate the menu choices.
+        foreach ($DisplayName in $CurrentAccountRoles.DisplayName) {
+            Write-Host -ForegroundColor "Yellow" "[$Counter] $DisplayName"
+            
+            # Add to counter.
+            $Counter = $Counter + 1
+        }
+        Write-Host -ForegroundColor "Yellow" "[0] Exit"
+        
+        # Write empty line.
+        Write-Host -ForegroundColor "Yellow" ""
+        
+        # Prompt user for input.
+        $Prompt = "Choice"
+        $Answer = Read-Host $Prompt
+
+        # Exit if requested.
+        if ($Answer -eq 0) {
+            break
+        }
+
+        # Exit if nothing is selected.
+        if ($Answer -eq '') {
+            break
+        }
+
+        # Exit if no role is selected.
+        if (!($CurrentAccountRoles[$Answer - 1])) {
+            break
+        }
+
+        $RolesToActivate = @($CurrentAccountRoles[$Answer - 1])
+    } else {
+        Write-Host 'Roles to activate:'
+        Write-Host ''
+
+        $RolesToActivate = foreach ($Role in $RolesToActivate) {
+            if ($CurrentAccountRoles.DisplayName -contains $Role) {
+                Write-Host $Role
+                $CurrentAccountRoles | Where-Object { $_.DisplayName -eq $Role }
+            }
+        }
     }
-    Write-Host -ForegroundColor "Yellow" "[0] Exit"
-    
-    # Write empty line.
-    Write-Host -ForegroundColor "Yellow" ""
-    
-    # Prompt user for input.
-    $Prompt = "Choice"
-    $Answer = Read-Host $Prompt
 
-    # Exit if requested.
-    if ($Answer -eq 0) {
-        break
-    }
+    # Prompt user for reason.
+    Write-Host ''
+    $Prompt = "Reason"
+    $Reason = Read-Host $Prompt
 
-    # Exit if nothing is selected.
-    if ($Answer -eq '') {
-        break
-    }
+    foreach ($Role in $RolesToActivate) {
+        # Check if PIM-role is already activated.
+        if ($Role.AssignmentState -eq 'Active') {
+            Write-Warning -Message "Azure AD Role '$($Role.DisplayName)' already activated!"
+        }
+        else {
+            # Prompt user for duration.
+            if (!($Duration = Read-Host "Duration for '$($Role.DisplayName)' [$($Role.maximumGrantPeriodInMinutes / 60) hour(s)]")) { $Duration = ($Role.maximumGrantPeriodInMinutes / 60) }
 
-    # Exit if no role is selected.
-    if (!($CurrentAccountRoles[$Answer - 1])) {
-        break
-    }
+            # Create activation schedule based on the current role limit.
+            $Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
+            $Schedule.Type = "Once"
+            $Schedule.StartDateTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+            $Schedule.endDateTime = ((Get-Date).AddHours($Duration)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
 
-    $RoleToActivate = $CurrentAccountRoles[$Answer - 1]
+            # Activate PIM role.
+            Write-Verbose -Verbose -Message "Activating PIM role '$($Role.DisplayName)'..."
+            Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId -RoleDefinitionId $Role.RoleDefinitionId -SubjectId $CurrentAccountId -Type 'UserAdd' -AssignmentState 'Active' -Schedule $Schedule -Reason $Reason | Out-Null
 
-
-    # Prompt user for duration.
-    if (!($Duration = Read-Host "Duration [$($RoleToActivate.maximumGrantPeriodInMinutes / 60) hour(s)]")) { $Duration = ($RoleToActivate.maximumGrantPeriodInMinutes / 60) }
-
-
-    # Create activation schedule based on the current role limit.
-    $Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
-    $Schedule.Type = "Once"
-    $Schedule.StartDateTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-    $Schedule.endDateTime = ((Get-Date).AddHours($Duration)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-
-
-    # Check if PIM-role is already activated.
-    if ($RoleToActivate.AssignmentState -eq 'Active') {
-        Write-Warning -Message "Azure AD Role '$($RoleToActivate.DisplayName)' already activated!"
-    }
-    else {
-        # Prompt user for reason.
-        $Prompt = "Reason"
-        $Reason = Read-Host $Prompt
-
-        # Activate PIM role.
-        Write-Verbose -Verbose -Message 'Activating PIM role...'
-        Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId -RoleDefinitionId $RoleToActivate.RoleDefinitionId -SubjectId $CurrentAccountId -Type 'UserAdd' -AssignmentState 'Active' -Schedule $Schedule -Reason $Reason | Out-Null
-
-        Write-Verbose -Verbose -Message "$($RoleToActivate.DisplayName) has been activated until $($Schedule.endDateTime)!"
+            Write-Verbose -Verbose -Message "$($Role.DisplayName) has been activated until $($Schedule.endDateTime)!"
+        }
     }
 }
 
@@ -1713,13 +1729,13 @@ function Import-DCConditionalAccessPolicyDesign {
     if ($DeleteAllExistingPolicies) {
         Write-Verbose -Verbose -Message "Deleting all existing Conditional Access policies..."
         $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
-        $ExistingPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction Continue
+        $ExistingPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction SilentlyContinue
 
         foreach ($Policy in $ExistingPolicies) {
             Start-Sleep -Seconds 1
             $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$($Policy.id)"
 
-            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri | Out-Null
+            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri -ErrorAction SilentlyContinue | Out-Null
         }
     }
 
