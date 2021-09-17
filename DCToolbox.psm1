@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.19
+Version: 1.0.20
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -935,6 +935,12 @@ function Enable-DCAzureADPIMRole {
         
         .PARAMETER RolesToActivate
             This parameter is optional but if you specify it, you can select multiple roles to activate at ones.
+
+        .PARAMETER Reason
+            Specify the reason for activating your roles.
+
+        .PARAMETER UseMaxiumTimeAllowed
+            Use this switch to automatically request maxium allowed time for all role assignments.
             
         .INPUTS
             None
@@ -952,11 +958,23 @@ function Enable-DCAzureADPIMRole {
 
         .EXAMPLE
             Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
+
+        .EXAMPLE
+            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaxiumTimeAllowed
+
+        .EXAMPLE
+            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -Reason 'Performing some Exchange security coniguration.' -UseMaxiumTimeAllowed
     #>
 
     param (
         [parameter(Mandatory = $false)]
-        [array]$RolesToActivate = @()
+        [array]$RolesToActivate = @(),
+
+        [parameter(Mandatory = $false)]
+        [string]$Reason,
+
+        [parameter(Mandatory = $false)]
+        [switch]$UseMaxiumTimeAllowed
     )
 
     # Set Error Action - Possible choices: Stop, SilentlyContinue
@@ -967,7 +985,7 @@ function Enable-DCAzureADPIMRole {
         # Do nothing.
     } 
     else {
-        Write-Error -Exception "The Azure AD Preview PowerShell module is not installed. Please, run 'Install-Module AzureADPreview' as an admin and try again." -ErrorAction Stop
+        Write-Error -Exception "The Azure AD Preview PowerShell module is not installed. Please, run 'Install-Module AzureADPreview -Force' as an admin and try again." -ErrorAction Stop
     }
 
     # Check if the MSAL module is installed.
@@ -975,7 +993,7 @@ function Enable-DCAzureADPIMRole {
         # Do nothing.
     }
     else {
-        Write-Error -Exception "The MSAL module is not installed. Please, run 'Install-Package msal.ps' as an admin and try again." -ErrorAction Stop
+        Write-Error -Exception "The MSAL module is not installed. Please, run 'Install-Package msal.ps -AcceptLicense -Force' as an admin and try again." -ErrorAction Stop
     }
 
     # Make sure AzureADPreview is the loaded PowerShell module even if AzureAD is installed.
@@ -1105,8 +1123,12 @@ function Enable-DCAzureADPIMRole {
 
     # Prompt user for reason.
     Write-Host ''
-    $Prompt = "Reason"
-    $Reason = Read-Host $Prompt
+
+    if (!($Reason)) {
+        $Prompt = "Reason"
+        $Reason = Read-Host $Prompt
+    }
+
 
     foreach ($Role in $RolesToActivate) {
         # Check if PIM-role is already activated.
@@ -1114,8 +1136,14 @@ function Enable-DCAzureADPIMRole {
             Write-Warning -Message "Azure AD Role '$($Role.DisplayName)' already activated!"
         }
         else {
-            # Prompt user for duration.
-            if (!($Duration = Read-Host "Duration for '$($Role.DisplayName)' [$($Role.maximumGrantPeriodInMinutes / 60) hour(s)]")) { $Duration = ($Role.maximumGrantPeriodInMinutes / 60) }
+            $Duration = 0
+
+            if ($UseMaxiumTimeAllowed) {
+                $Duration = ($Role.maximumGrantPeriodInMinutes / 60)
+            } else {
+                # Prompt user for duration.
+                if (!($Duration = Read-Host "Duration for '$($Role.DisplayName)' [$($Role.maximumGrantPeriodInMinutes / 60) hour(s)]")) { $Duration = ($Role.maximumGrantPeriodInMinutes / 60) }
+            }
 
             # Create activation schedule based on the current role limit.
             $Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
