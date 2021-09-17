@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.20
+Version: 1.0.21
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -270,11 +270,22 @@ help New-DCConditionalAccessAssignmentReport -Full
             }
             3 {
                 $Snippet = @'
-# Activate an Azure AD Privileged Identity Management (PIM) role.
+# Install required modules (only needed first time).
+Install-Module -Name DCToolbox -Scope CurrentUser -Force
+Install-Module -Name AzureADPreview -Scope CurrentUser -Force
+Install-Package msal.ps -AcceptLicense -Force
+
+# Enable one of your Azure AD PIM roles.
 Enable-DCAzureADPIMRole
 
+# Enable multiple Azure AD PIM roles.
+Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
+
+# Fully automate Azure AD PIM role activation.
+Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaxiumTimeAllowed -Reason 'Performing some Exchange security coniguration according to change #12345.'
+
 <#
-    User sign-in will popup and the after signing in, the following will happen:
+    Example output:
 
     VERBOSE: Connecting to Azure AD...
 
@@ -286,8 +297,8 @@ Enable-DCAzureADPIMRole
     [0] Exit
 
     Choice: 3
-    Duration [1 hour(s)]: 1
     Reason: Need to do some security work!
+    Duration [1 hour(s)]: 1
     VERBOSE: Activating PIM role...
     VERBOSE: Security Administrator has been activated until 11/13/2020 11:41:01!
 #>
@@ -295,7 +306,6 @@ Enable-DCAzureADPIMRole
 
 # Learn more about Enable-DCAzureADPIMRole.
 help Enable-DCAzureADPIMRole -Full
-
 
 # Privileged Identity Management | My roles:
 # https://portal.azure.com/#blade/Microsoft_Azure_PIMCommon/ActivationMenuBlade/aadmigratedroles
