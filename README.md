@@ -50,7 +50,7 @@ Run a Microsoft Graph query.
 
 <h3>Enable-DCAzureADPIMRole</h3>
 
-Activate an Azure AD Privileged Identity Management (PIM) role with PowerShell.
+Activate one or more Azure AD Privileged Identity Management (PIM) role with PowerShell.
 
 <h3>Get-DCPublicIp</h3>
 

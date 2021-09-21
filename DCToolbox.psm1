@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.21
+Version: 1.0.22
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -270,10 +270,18 @@ help New-DCConditionalAccessAssignmentReport -Full
             }
             3 {
                 $Snippet = @'
-# Install required modules (only needed first time).
+# Install required modules (if you are local admin) (only needed first time).
+Install-Module -Name DCToolbox -Force
+Install-Module -Name AzureADPreview -Force
+Install-Package msal.ps -AcceptLicense -Force
+
+# Install required modules as curren user (if you're not local admin) (only needed first time).
 Install-Module -Name DCToolbox -Scope CurrentUser -Force
 Install-Module -Name AzureADPreview -Scope CurrentUser -Force
 Install-Package msal.ps -AcceptLicense -Force
+
+
+# If you want to, you can run Connect-AzureAD before running Enable-DCAzureADPIMRole, but you don't have to.
 
 # Enable one of your Azure AD PIM roles.
 Enable-DCAzureADPIMRole
@@ -1581,6 +1589,9 @@ function Export-DCConditionalAccessPolicyDesign {
         .PARAMETER FilePath
             The file path where the new JSON file will be created. Skip to use the current path.
 
+        .PARAMETER PrefixFilter
+            Only export the policys with this prefix.
+
         .INPUTS
             None
 
@@ -1600,6 +1611,16 @@ function Export-DCConditionalAccessPolicyDesign {
             }
 
             Export-DCConditionalAccessPolicyDesign @Parameters
+        
+        .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+                PrefixFilter = 'RING1'
+            }
+
+            Export-DCConditionalAccessPolicyDesign @Parameters
     #>
 
 
@@ -1615,7 +1636,10 @@ function Export-DCConditionalAccessPolicyDesign {
         [string]$ClientSecret,
 
         [parameter(Mandatory = $false)]
-        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json"
+        [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json",
+
+        [parameter(Mandatory = $false)]
+        [string]$PrefixFilter
     )
 
 
@@ -1631,10 +1655,22 @@ function Export-DCConditionalAccessPolicyDesign {
     $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
 
 
+    # Show filter settings.
+    if ($PrefixFilter) {
+        Write-Verbose -Verbose -Message "Prefix filter was set and only policys beginning with '$PrefixFilter' will be exported!"
+    }
+
+
     # Export all Conditional Access policies from Microsoft Graph as JSON.
     Write-Verbose -Verbose -Message "Exporting Conditional Access policies to '$FilePath'..."
     
-    $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
+    $GraphUri = ''
+
+    if ($PrefixFilter) {
+        $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies?`$filter=startsWith(displayName,'$PrefixFilter')"
+    } else {
+        $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
+    }
 
     Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Sort-Object createdDateTime | ConvertTo-Json -Depth 10 | Out-File -Force:$true -FilePath $FilePath
 
@@ -1692,6 +1728,9 @@ function Import-DCConditionalAccessPolicyDesign {
 
         .PARAMETER DeleteAllExistingPolicies
             WARNING: If you want to, you can delete all existing policies when deploying your new ones with -DeleteAllExistingPolicies, Use this parameter with causon and allways create a backup with Export-DCConditionalAccessPolicyDesign first!!
+
+        .PARAMETER PrefixFilter
+            Only import (and delete) the policys with this prefix in the JSON file.
             
         .INPUTS
             JSON file containing your Conditional Access policies.
@@ -1711,6 +1750,18 @@ function Import-DCConditionalAccessPolicyDesign {
                 FilePath = 'C:\Temp\Conditional Access.json'
                 SkipReportOnlyMode = $false
                 DeleteAllExistingPolicies = $false
+            }
+
+            Import-DCConditionalAccessPolicyDesign @Parameters
+
+        .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+                SkipReportOnlyMode = $true
+                DeleteAllExistingPolicies = $true
+                PrefixFilter = 'RING2'
             }
 
             Import-DCConditionalAccessPolicyDesign @Parameters
@@ -1735,7 +1786,10 @@ function Import-DCConditionalAccessPolicyDesign {
         [switch]$SkipReportOnlyMode,
 
         [parameter(Mandatory = $false)]
-        [switch]$DeleteAllExistingPolicies
+        [switch]$DeleteAllExistingPolicies,
+
+        [parameter(Mandatory = $false)]
+        [string]$PrefixFilter
     )
 
 
@@ -1749,6 +1803,12 @@ function Import-DCConditionalAccessPolicyDesign {
     # Authenticate to Microsoft Graph.
     Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
     $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+
+
+    # Show filter settings.
+    if ($PrefixFilter) {
+        Write-Verbose -Verbose -Message "Prefix filter was set and only policys beginning with '$PrefixFilter' will be affected!"
+    }
 
 
     # Import policies from JSON file.
@@ -1770,10 +1830,12 @@ function Import-DCConditionalAccessPolicyDesign {
         $ExistingPolicies = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction SilentlyContinue
 
         foreach ($Policy in $ExistingPolicies) {
-            Start-Sleep -Seconds 1
-            $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$($Policy.id)"
-
-            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri -ErrorAction SilentlyContinue | Out-Null
+            if ($Policy.displayName.StartsWith($PrefixFilter)) {
+                Start-Sleep -Seconds 1
+                $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$($Policy.id)"
+    
+                Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri -ErrorAction SilentlyContinue | Out-Null
+            }
         }
     }
 
@@ -1784,15 +1846,17 @@ function Import-DCConditionalAccessPolicyDesign {
     $ConditionalAccessPolicies = $ConditionalAccessPolicies | ConvertFrom-Json
 
     foreach ($Policy in $ConditionalAccessPolicies) {
-        Start-Sleep -Seconds 1
-        Write-Verbose -Verbose -Message "Creating '$($Policy.DisplayName)'..."
+        if ($Policy.displayName.StartsWith($PrefixFilter)) {
+            Start-Sleep -Seconds 1
+            Write-Verbose -Verbose -Message "Creating '$($Policy.DisplayName)'..."
 
-        try {
-            # Create new policies.
-            Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody ($Policy | ConvertTo-Json -Depth 10) | Out-Null
-        }
-        catch {
-            Write-Error -Message $_.Exception.Message -ErrorAction Continue
+            try {
+                # Create new policies.
+                Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody ($Policy | ConvertTo-Json -Depth 10) | Out-Null
+            }
+            catch {
+                Write-Error -Message $_.Exception.Message -ErrorAction Continue
+            }
         }
     }
 
