@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.22
+Version: 1.0.23
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -94,7 +94,7 @@ function Copy-DCExample {
 
 # *** Connect Examples ***
 
-# Connect to Microsoft Graph with delegated credentials.
+# Connect to Microsoft Graph with delegated permissions.
 $Parameters = @{
     ClientID = ''
     ClientSecret = ''
@@ -103,7 +103,7 @@ $Parameters = @{
 $AccessToken = Connect-DCMsGraphAsDelegated @Parameters
 
 
-# Connect to Microsoft Graph with application credentials.
+# Connect to Microsoft Graph with application permissions.
 $Parameters = @{
     TenantName = 'example.onmicrosoft.com'
     ClientID = ''
@@ -331,6 +331,105 @@ help Enable-DCAzureADPIMRole -Full
             }
             4 {
                 $Snippet = @'
+### Clean up phone authentication methods for all Azure AD users ###
+
+<#
+    Set the registered applications ClientID and ClientSecret further down. This script requires the following Microsoft Graph permissions:
+    Delegated:
+        UserAuthenticationMethod.ReadWrite.All
+        Reports.Read.All
+
+    It also requires the DCToolbox PowerShell module:
+    Install-Module -Name DCToolbox -Force
+
+    Note that this script cannot delete a users phone method if it is set as the default authentication method. Microsoft Graph cannot, as of 7/10 2021, manage the default authentication method for users in Azure AD. Hopefully the users method of choice was changed when he/she switched to the Microsoft Authenticator app or another MFA/passwordless authentication method. If not, ask them to change the default method before running the script.
+
+    Use the following report to understand how many users are registered for phone authentication (can lag up to 48 hours): https://portal.azure.com/#blade/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/AuthMethodsActivity
+#>
+
+
+# Connect to Microsoft Graph with delegated permissions.
+Write-Verbose -Verbose -Message 'Connecting to Microsoft Graph...'
+$Parameters = @{
+    ClientID     = ''
+    ClientSecret = ''
+}
+
+$AccessToken = Connect-DCMsGraphAsDelegated @Parameters
+
+
+# Fetch all users with phone authentication enabled from the Azure AD authentication usage report (we're using this usage report to save time and resources when querying Graph, but their might be a 24 hour delay in the report data).
+Write-Verbose -Verbose -Message 'Fetching all users with any phone authentication methods registered...'
+$Parameters = @{
+    AccessToken = $AccessToken
+    GraphMethod = 'GET'
+    GraphUri    = "https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?`$filter=authMethods/any(t:t eq microsoft.graph.registrationAuthMethod'mobilePhone') or authMethods/any(t:t eq microsoft.graph.registrationAuthMethod'officePhone')"
+}
+
+$AllUsersWithPhoneAuthentication = Invoke-DCMsGraphQuery @Parameters
+
+
+# Output the number of users found.
+Write-Verbose -Verbose -Message "Found $($AllUsersWithPhoneAuthentication.Count) users!"
+
+
+# Loop through all those users.
+$ProgressCounter = 0
+foreach ($User in $AllUsersWithPhoneAuthentication) {
+    # Show progress bar.
+    $ProgressCounter += 1
+    [int]$PercentComplete = ($ProgressCounter / $AllUsersWithPhoneAuthentication.Count) * 100
+    Write-Progress -PercentComplete $PercentComplete -Activity "Processing user $ProgressCounter of $($AllUsersWithPhoneAuthentication.Count)" -Status "$PercentComplete% Complete"
+
+    # Retrieve a list of registered phone authentication methods for the user. This will return up to three objects, as a user can have up to three phones usable for authentication.
+    Write-Verbose -Verbose -Message "Fetching phone methods for $($User.userPrincipalName)..."
+    $Parameters = @{
+        AccessToken = $AccessToken
+        GraphMethod = 'GET'
+        GraphUri    = "https://graph.microsoft.com/beta/users/$($User.userPrincipalName)/authentication/phoneMethods"
+    }
+
+    $phoneMethods = Invoke-DCMsGraphQuery @Parameters
+
+    <#
+        The value of id corresponding to the phoneType to delete is one of the following:
+
+        b6332ec1-7057-4abe-9331-3d72feddfe41 to delete the alternateMobile phoneType.
+        e37fc753-ff3b-4958-9484-eaa9425c82bc to delete the office phoneType.
+        3179e48a-750b-4051-897c-87b9720928f7 to delete the mobile phoneType.
+    #>
+
+    # Loop through all user phone methods.
+    foreach ($phoneMethod in $phoneMethods) {
+        # Delete the phone method.
+        try {
+            if ($phoneMethod.phoneType) {
+                Write-Verbose -Verbose -Message "Deleting phone method '$($phoneMethod.phoneType)' for $($User.userPrincipalName)..."
+                $Parameters = @{
+                    AccessToken = $AccessToken
+                    GraphMethod = 'DELETE'
+                    GraphUri    = "https://graph.microsoft.com/beta/users/$($User.userPrincipalName)/authentication/phoneMethods/$($phoneMethod.id)"
+                }
+
+                Invoke-DCMsGraphQuery @Parameters | Out-Null
+            }
+        }
+        catch {
+            Write-Warning -Message "Could not delete phone method '$($phoneMethod.phoneType)' for $($User.userPrincipalName)! Is it the users default authentication method?"
+        }
+    }
+}
+                            
+'@
+
+                Set-Clipboard $Snippet
+
+                Write-Host -ForegroundColor "Yellow" ""
+                Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+                Write-Host -ForegroundColor "Yellow" ""
+            }
+            5 {
+                $Snippet = @'
 <#
     .SYNOPSIS
         A simple script template.
@@ -446,7 +545,7 @@ function1 -Parameter1 'Test'
                 Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
                 Write-Host -ForegroundColor "Yellow" ""
             }
-            5 {
+            6 {
                 $Snippet = @'
 # README: This script is an example of what you might want to/need to do if your Azure AD has been breached. This script was created in the spirit of the zero trust assume breach methodology. The idea is that if you detect that attackers are already on the inside, then you must try to kick them out. This requires multiple steps and you also must handle other resources like your on-prem AD. However, this script example helps you in the right direction when it comes to Azure AD admin roles.
 
@@ -660,11 +759,219 @@ X
 	
 
     # Create example menu.
-    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Azure AD Privileged Identity Management (PIM) role", "General PowerShell script template", "Azure AD Security Breach Kick-Out Process"
+    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Azure AD Privileged Identity Management (PIM) role", "Azure MFA SMS and voice call methods cleanup script", "General PowerShell script template", "Azure AD Security Breach Kick-Out Process"
     
 
     # Handle menu choice.
     HandleMenuChoice -MenuChoice $Choice
+}
+
+
+
+function Get-DCM365Config {
+    <#
+        .SYNOPSIS
+            Gather basic configuration data from a Microsoft 365 tenant.
+
+        .DESCRIPTION
+            This CMDlet will prompt you to sign in to Azure AD and MSOL. The purpose of this tool is to quickly inventory tenant configuration and possibly document it in Excel.
+            
+        .INPUTS
+            None
+
+        .OUTPUTS
+            A PowerShell object containing all gathered data.
+
+        .NOTES
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
+        
+        .EXAMPLE
+            Get-DCM365Config
+        
+        .EXAMPLE
+            Get-DCM365Config | ConvertTo-Csv -NoTypeInformation -Delimiter ';' | Set-Clipboard
+    #>
+
+
+    # Function to check if there already is an active MSOL session.
+    function MsolConnected {
+		Get-MsolDomain -ErrorAction SilentlyContinue | Out-Null
+		$Result = $?
+		$Result
+	}
+	
+	
+	# Function to check if there already is an active Azure AD session.
+    function AzureAdConnected {
+        try {
+            $Var = Get-AzureADTenantDetail
+            $true
+        } 
+        catch {
+            $false
+        }
+    }
+	
+	
+    # Function to add a report row.
+	function Add-ReportRow {
+		param (
+			$Category,
+			$Setting,
+			$Value,
+			$MsolDirSyncFeatures
+		)
+	
+		$CustomObject = New-Object -TypeName psobject
+	
+		$CustomObject | Add-Member -MemberType NoteProperty -Name "Category" -Value $Category
+		$CustomObject | Add-Member -MemberType NoteProperty -Name "Setting" -Value $Setting
+		$CustomObject | Add-Member -MemberType NoteProperty -Name "Value" -Value $Value
+		$CustomObject | Add-Member -MemberType NoteProperty -Name "Notes" -Value $MsolDirSyncFeatures
+	
+		$CustomObject
+	}
+	
+	
+	$SkuNames = @(
+		@{SkuPartNumber = "STANDARDPACK"; FriendlyName = "OFFICE 365 E1"},
+		@{SkuPartNumber = "ENTERPRISEPACK"; FriendlyName = "OFFICE 365 E3"},
+		@{SkuPartNumber = "ENTERPRISEPREMIUM"; FriendlyName = "OFFICE 365 E5"},
+		@{SkuPartNumber = "EMS"; FriendlyName = "EMS E3"},
+		@{SkuPartNumber = "EMSPREMIUM"; FriendlyName = "EMS E5"}
+		@{SkuPartNumber = "SMB_BUSINESS_PREMIUM"; FriendlyName = "MICROSOFT 365 BUSINESS STANDARD"}
+		@{SkuPartNumber = "SPB"; FriendlyName = "MICROSOFT 365 BUSINESS PREMIUM"}
+		@{SkuPartNumber = "SPE_E3"; FriendlyName = "Microsoft 365 E3"}
+		@{SkuPartNumber = "SPE_E5"; FriendlyName = "Microsoft 365 E5"}
+		@{SkuPartNumber = "POWER_BI_STANDARD"; FriendlyName = "Power BI Free"}
+		@{SkuPartNumber = "FLOW_FREE"; FriendlyName = "Power Automate Free"}
+		@{SkuPartNumber = "WINDOWS_STORE"; FriendlyName = "Windows Store for Business"}
+		@{SkuPartNumber = "MCOPSTNC"; FriendlyName = "Communications Credits"}
+		@{SkuPartNumber = "RMSBASIC"; FriendlyName = "Azure Rights Management"}
+	)
+	
+	
+	# Connect to Microsoft 365.
+	if (!(MsolConnected)) {
+		Connect-MsolService
+	}
+	
+	
+	# Connect to Azure AD.
+	if (!(AzureAdConnected)) {
+		Connect-AzureAD
+	}
+	
+	
+	# Gather information.
+	$MsolCompanyInformation = Get-MsolCompanyInformation
+	$MsolDomains = Get-MsolDomain
+	$MsolSubscriptions = Get-MsolSubscription
+	$MsolAccountSkus = Get-MsolAccountSku
+	$MsolDirSyncConfiguration = Get-MsolDirSyncConfiguration
+	$MsolDirSyncFeatures = Get-MsolDirSyncFeatures
+	$MsolUser = Get-MsolUser -All:$true
+	$MsolGroup = Get-MsolGroup -All:$true
+	$MsolDevice = Get-MsolDevice -All:$true
+	$MsolContact = Get-MsolContact -All:$true
+	$MsolAdministrativeUnit = Get-MsolAdministrativeUnit -All:$true
+	$AzureADCurrentSessionInfo = Get-AzureADCurrentSessionInfo
+	$AzureADApplicationProxyConnector = Get-AzureADApplicationProxyConnector
+	$AzureADApplications = Get-AzureADApplication
+	$AzureADMSConditionalAccessPolicies = Get-AzureADMSConditionalAccessPolicy
+	
+	
+	
+	$ScriptBlock = {
+		Add-ReportRow -Category "About" -Setting "Report script version" -Value "0.1" -Notes ""
+		Add-ReportRow -Category "About" -Setting "Report generated" -Value (Get-Date) -Notes ""
+		Add-ReportRow -Category "About" -Setting "Generated by" -Value $AzureADCurrentSessionInfo.Account -Notes ""
+		Add-ReportRow -Category "General" -Setting "Organisation" -Value $MsolCompanyInformation.DisplayName -Notes ""
+		Add-ReportRow -Category "General" -Setting "Tenant domain" -Value $AzureADCurrentSessionInfo.TenantDomain -Notes ""
+		Add-ReportRow -Category "General" -Setting "Tenant ID" -Value $AzureADCurrentSessionInfo.TenantId -Notes ""
+		Add-ReportRow -Category "General" -Setting "Environment" -Value $AzureADCurrentSessionInfo.AzureCloud -Notes ""
+		Add-ReportRow -Category "General" -Setting "Preferred language" -Value $MsolCompanyInformation.PreferredLanguage -Notes ""
+		Add-ReportRow -Category "General" -Setting "Street" -Value $MsolCompanyInformation.Street -Notes ""
+		Add-ReportRow -Category "General" -Setting "City" -Value $MsolCompanyInformation.City -Notes ""
+		Add-ReportRow -Category "General" -Setting "State" -Value $MsolCompanyInformation.State -Notes ""
+		Add-ReportRow -Category "General" -Setting "Postal code" -Value $MsolCompanyInformation.PostalCode -Notes ""
+		Add-ReportRow -Category "General" -Setting "Country" -Value $MsolCompanyInformation.Country -Notes ""
+		Add-ReportRow -Category "General" -Setting "Country letter code" -Value $MsolCompanyInformation.CountryLetterCode -Notes ""
+		Add-ReportRow -Category "General" -Setting "Telephone number" -Value $MsolCompanyInformation.TelephoneNumber -Notes ""
+		Add-ReportRow -Category "General" -Setting "Marketing notification emails" -Value $MsolCompanyInformation.MarketingNotificationEmails -Notes ""
+		Add-ReportRow -Category "General" -Setting "Technical notification emails" -Value $MsolCompanyInformation.TechnicalNotificationEmails -Notes ""
+	
+		foreach ($MsolDomain in $MsolDomains) {
+			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Domain Name" -Value $MsolDomain.Name -Notes ""
+			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Default" -Value $MsolDomain.IsDefault -Notes ""
+			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Initial" -Value $MsolDomain.IsInitial -Notes ""
+			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Status" -Value $MsolDomain.Status -Notes ""
+			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Verification Method" -Value $MsolDomain.VerificationMethod -Notes ""
+			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Authentication" -Value $MsolDomain.Authentication -Notes ""
+			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Capabilities" -Value $MsolDomain.Capabilities -Notes ""
+			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Root Domain" -Value $MsolDomain.RootDomain -Notes ""
+		}
+	
+		foreach ($MsolAccountSku in ($MsolAccountSkus | Sort-Object ConsumedUnits -Descending)) {
+			$SkuId = $MsolAccountSku.AccountSkuId -replace ".*\:"
+			Add-ReportRow -Category "SKU ($SkuId)" -Setting "Name" -Value "$(($SkuNames | Where-Object { $_.SkuPartNumber -eq $SkuId } ).FriendlyName) (SKU ID: $SkuId)" -Notes ""
+			Add-ReportRow -Category "SKU ($SkuId)" -Setting "Status" -Value ($MsolSubscriptions | Where-Object { $_.SkuPartNumber -eq $SkuId } ).Status -Notes ""
+			Add-ReportRow -Category "SKU ($SkuId)" -Setting "ActiveUnits" -Value $MsolAccountSku.ActiveUnits -Notes ""
+			Add-ReportRow -Category "SKU ($SkuId)" -Setting "ConsumedUnits" -Value $MsolAccountSku.ConsumedUnits -Notes ""
+			Add-ReportRow -Category "SKU ($SkuId)" -Setting "WarningUnits" -Value $MsolAccountSku.WarningUnits -Notes ""
+		}
+	
+		Add-ReportRow -Category "Azure AD" -Setting "Self-Service Password Reset Enabled" -Value $MsolCompanyInformation.SelfServePasswordResetEnabled -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of Users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" } ).Count -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of licensed users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" -and $_.IsLicensed } ).Count -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of unlicensed users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" -and $_.IsLicensed -eq $false } ).Count -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of Guests" -Value ($MsolUser | Where-Object { $_.UserType -eq "Guest" } ).Count -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of Groups" -Value $MsolGroup.Count -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of Devices" -Value $MsolDevice.Count -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of Contacts" -Value $MsolContact.Count -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of Administrative Units" -Value $MsolAdministrativeUnit.Count -Notes ""
+		Add-ReportRow -Category "Azure AD" -Setting "Number of Azure AD app proxy connectors" -Value $AzureADApplicationProxyConnector.Count -Notes ""
+		
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Last Azure AD Connect Sync Time" -Value $MsolCompanyInformation.LastDirSyncTime -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Password Hash Sync Enabled" -Value $MsolCompanyInformation.PasswordSynchronizationEnabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Password Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "PasswordWriteBack" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Accidental Deletion Threshold" -Value $MsolDirSyncConfiguration.AccidentalDeletionThreshold -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Deletion Prevention Type" -Value $MsolDirSyncConfiguration.DeletionPreventionType -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Device Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DeviceWriteback" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Directory Extensions" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DirectoryExtensions" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate Proxy Address Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateProxyAddressResiliency" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate UPN Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateUPNResiliency" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Enable Soft Match On Upn" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnableSoftMatchOnUpn" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Enforce Cloud Password Policy For Password Synced Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnforceCloudPasswordPolicyForPasswordSyncedUsers" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Synchronize Upn For Managed Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "SynchronizeUpnForManagedUsers" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "Unified Group Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UnifiedGroupWriteback" }).Enabled -Notes ""
+		Add-ReportRow -Category "Azure AD Connect" -Setting "User Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UserWriteback" }).Enabled -Notes ""
+	
+		Add-ReportRow -Category "Azure AD Apps" -Setting "Number of enterprise applications" -Value $AzureADApplications.Count -Notes ""
+		foreach ($AzureADApplication in $AzureADApplications) {
+			Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Name" -Value $AzureADApplication.DisplayName -Notes ""
+			Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "App ID" -Value $AzureADApplication.AppId -Notes ""
+			Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Is disabled" -Value $AzureADApplication.IsDisabled -Notes ""
+			Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Available to other tenants" -Value $AzureADApplication.AvailableToOtherTenants -Notes ""
+		}
+	
+		Add-ReportRow -Category "Azure AD Conditional Access" -Setting "Number of Conditional Access policies" -Value $AzureADMSConditionalAccessPolicies.Count -Notes ""
+		foreach ($AzureADMSConditionalAccessPolicy in $AzureADMSConditionalAccessPolicies) {
+			Add-ReportRow -Category "Azure AD Conditional Access ($($AzureADMSConditionalAccessPolicy.DisplayName))" -Setting "Name" -Value $AzureADMSConditionalAccessPolicy.DisplayName -Notes ""
+			Add-ReportRow -Category "Azure AD Conditional Access ($($AzureADMSConditionalAccessPolicy.DisplayName))" -Setting "State" -Value $AzureADMSConditionalAccessPolicy.State -Notes ""
+		}
+	
+		Add-ReportRow -Category "Microsoft 365 Groups" -Setting "Users can create Microsoft 365 groups" -Value $MsolCompanyInformation.UsersPermissionToCreateGroupsEnabled -Notes ""
+	}
+	
+	
+	$Result = Invoke-Command $ScriptBlock
+	$Result #| Format-Table
+	
+	
+	#$Result | Export-Csv -Delimiter ";" -Encoding "utf8" -NoTypeInformation -Path "Temp.csv"	
 }
 
 
@@ -1657,7 +1964,7 @@ function Export-DCConditionalAccessPolicyDesign {
 
     # Show filter settings.
     if ($PrefixFilter) {
-        Write-Verbose -Verbose -Message "Prefix filter was set and only policys beginning with '$PrefixFilter' will be exported!"
+        Write-Verbose -Verbose -Message "Prefix filter was set and only policies beginning with '$PrefixFilter' will be exported!"
     }
 
 
@@ -1807,7 +2114,7 @@ function Import-DCConditionalAccessPolicyDesign {
 
     # Show filter settings.
     if ($PrefixFilter) {
-        Write-Verbose -Verbose -Message "Prefix filter was set and only policys beginning with '$PrefixFilter' will be affected!"
+        Write-Verbose -Verbose -Message "Prefix filter was set and only policies beginning with '$PrefixFilter' will be affected!"
     }
 
 

@@ -38,6 +38,10 @@ Explore and copy script examples to your clipboard with:
 
 <h3>Connect-DCMsGraphAsDelegated</h3>
 
+Gather basic configuration data from a Microsoft 365 tenant.
+
+<h3>Connect-DCMsGraphAsDelegated</h3>
+
 Connect to Microsoft Graph with delegated credentials (interactive login will popup).
 
 <h3>Connect-DCMsGraphAsApplication</h3>
