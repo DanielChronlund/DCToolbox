@@ -76,6 +76,10 @@ Test if common and easily guessed admin usernames exist for specified Azure AD d
 
 Test if legacy authentication is allowed in Office 365 for a particular user.
 
+<h3>Get-DCAzureADUsersAndGroupsAsGuest</h3>
+
+Lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Azure AD is set to the default configuration.
+
 <h3>Export-DCConditionalAccessPolicyDesign</h3>
 
 This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign.

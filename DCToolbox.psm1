@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.23
+Version: 1.0.24
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -1867,6 +1867,179 @@ function Test-DCLegacyAuthentication {
 
 
 
+function Get-DCAzureADUsersAndGroupsAsGuest {
+	<#
+        .SYNOPSIS
+            This script lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Azure AD is set to the default configuration.
+        
+        .DESCRIPTION
+            This script is a proof of concept. Don't use it for bad things! It lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Azure AD is set to the default configuration. It works around the limitation that guest users must do explicit lookups for users and groups. It basically produces a list of all users and groups in the tenant, even though such actions are blocked for guests by default.
+            
+            If the target tenant allows guest users to sign in with Azure AD PowerShell, and the 'Guest user access restrictions' is set to one of these two settings:
+            'Guest users have the same access as members (most inclusive)'
+            'Guest users have limited access to properties and memberships of directory objects' [default]
+
+            And not set to:
+            'Guest user access is restricted to properties and memberships of their own directory objects (most restrictive)'
+
+            ...then this script will query Azure AD for the group memberships of the specified -InterestingUsers that you already know the UPN of. It then perform nested queries until all users and groups have been found. It will stop after a maximum of 5 iterations to avoid throttling and infinite loops. "A friend of a friend of a friend..."
+
+            Finally, the script will output one array with found users, and one array with found groups/teams. You can then export them to CSV or some other format of your choice. Export examples are outputed for your convenience.
+        
+        .PARAMETER TenantId
+            The tenant ID of the target tenant where you are a guest. You can find all your guest tenant IDs here: https://portal.azure.com/#settings/directory
+
+        .PARAMETER AccountId
+            Your UPN in your home tenant (probably your email address, right?).
+
+        .PARAMETER InterestingUsers
+            One or more UPNs of users in the target tenant. These will serve as a starting point for the search, and one or two employees you know about is often sufficient to enumerate everything.
+        
+        .EXAMPLE
+            Get-DCAzureADUsersAndGroupsAsGuest -TenantId '00000000-0000-0000-0000-000000000000' -AccountId 'user@example.com' -InterestingUsers 'customer1@customer.com', 'customer2@customer.com'
+
+        .INPUTS
+            None
+
+        .OUTPUTS
+            One array with found users, and one array with found groups/teams.
+        
+        .NOTES
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
+	#>
+
+
+	param (
+		[parameter(Mandatory = $true)]
+		[string]$TenantId,
+
+        [parameter(Mandatory = $true)]
+		[string]$AccountId,
+
+        [parameter(Mandatory = $true)]
+		[string[]]$InterestingUsers
+	)
+
+
+    # Connect to the target tenant as a guest.
+    Write-Verbose -Verbose -Message 'Connecting to Azure AD as guest...'
+    Connect-AzureAD -TenantId $TenantId -AccountId $AccountId | Out-Null
+
+
+    # Variables to collect.
+    $global:FoundUsers = @()
+    $global:FoundGroups = @()
+
+
+    # First round.
+    Write-Verbose -Verbose -Message 'Starting round 1...'
+    $global:FoundUsers = foreach ($User in $InterestingUsers) {
+        $FormatedUser = Get-AzureADUser -ObjectId $User
+        $Manager = Get-AzureADUserManager -ObjectId $FormatedUser.ObjectId
+        $FormatedUser | Add-Member -NotePropertyName 'ManagerDisplayName' -NotePropertyValue $Manager.DisplayName -Force
+        $FormatedUser | Add-Member -NotePropertyName 'ManagerUpn' -NotePropertyValue $Manager.UserPrincipalName -Force
+        $FormatedUser | Add-Member -NotePropertyName 'ManagerObjectId' -NotePropertyValue $Manager.ObjectId -Force
+        $FormatedUser
+    }
+
+    $global:FoundUsers = @($global:FoundUsers | Select-Object -Unique | Sort-Object UserPrincipalName)
+    Write-Verbose -Verbose -Message "Found $($global:FoundUsers.Count) users!"
+
+
+    # Remaining rounds.
+    for ($i = 2; $i -le 5; $i++) {
+        Write-Verbose -Verbose -Message "Starting round $i..."
+
+        foreach ($User in $global:FoundUsers) {
+            $Groups = Get-AzureADUserMembership -ObjectID $User.UserPrincipalName | where DisplayName -ne $null
+
+            foreach ($Group in $Groups) {
+                if ($global:FoundGroups.ObjectId) {
+                    if (!($global:FoundGroups.ObjectId.Contains($Group.ObjectId))) {
+                        Write-Verbose -Verbose -Message "Processing group '$($Group.DisplayName)'..."
+
+                        $global:FoundGroups += $Group
+
+                        $Members = @()
+
+                        try {
+                            $Members = Get-AzureADGroupMember -All:$true -ObjectId $Group.ObjectId -ErrorAction SilentlyContinue
+                        } catch {
+                            # Do nothing.
+                        }
+
+                        foreach ($Member in $Members) {
+                            if (!($global:FoundUsers.ObjectId.Contains($Member.ObjectId))) {
+                                $FormatedUser = Get-AzureADUser -ObjectId $Member.ObjectId -ErrorAction SilentlyContinue
+                                $Manager = Get-AzureADUserManager -ObjectId $FormatedUser.ObjectId
+                                $FormatedUser | Add-Member -NotePropertyName 'ManagerDisplayName' -NotePropertyValue $Manager.DisplayName -Force
+                                $FormatedUser | Add-Member -NotePropertyName 'ManagerUpn' -NotePropertyValue $Manager.UserPrincipalName -Force
+                                $FormatedUser | Add-Member -NotePropertyName 'ManagerObjectId' -NotePropertyValue $Manager.ObjectId -Force
+                                $global:FoundUsers += $FormatedUser
+                            }
+                        }
+                    }
+                } else {
+                    Write-Verbose -Verbose -Message "Processing group '$($Group.DisplayName)'..."
+                    
+                    $global:FoundGroups += $Group
+
+                    $Members = @()
+
+                    try {
+                        $Members = Get-AzureADGroupMember -All:$true -ObjectId $Group.ObjectId -ErrorAction SilentlyContinue
+                    } catch {
+                        # Do nothing.
+                    }
+
+                    foreach ($Member in $Members) {
+                        if (!($global:FoundUsers.ObjectId.Contains($Member.ObjectId))) {
+                            $FormatedUser = Get-AzureADUser -ObjectId $Member.ObjectId -ErrorAction SilentlyContinue
+                            $Manager = Get-AzureADUserManager -ObjectId $FormatedUser.ObjectId
+                            $FormatedUser | Add-Member -NotePropertyName 'ManagerDisplayName' -NotePropertyValue $Manager.DisplayName -Force
+                            $FormatedUser | Add-Member -NotePropertyName 'ManagerUpn' -NotePropertyValue $Manager.UserPrincipalName -Force
+                            $FormatedUser | Add-Member -NotePropertyName 'ManagerObjectId' -NotePropertyValue $Manager.ObjectId -Force
+                            $global:FoundUsers += $FormatedUser
+                        }
+                    }
+                }
+            }
+        }
+
+        # Remove duplicates.
+        $global:FoundUsers = $global:FoundUsers | Select-Object -Unique | Sort-Object UserPrincipalName
+        Write-Verbose -Verbose -Message "Found $($global:FoundUsers.Count) users!"
+        $global:FoundGroups = $global:FoundGroups | Select-Object -Unique | Sort-Object DisplayName
+        Write-Verbose -Verbose -Message "Found $($global:FoundGroups.Count) groups!"
+
+        # Check if we found any new users or groups this round.
+        if ($global:FoundUsers.Count -eq $LastRoundUsers -and $global:FoundGroups.Count -eq $LastRoundGroups) {
+            Write-Verbose -Verbose -Message "No new users or groups found in this round! Breaking loop!"
+            break
+        }
+
+        # Use this to check for new users and groups next round.
+        $LastRoundUsers = $global:FoundUsers.Count
+        $LastRoundGroups = $global:FoundGroups.Count
+    }
+
+    
+    # Output instructions.
+    Write-Host ''
+    Write-Verbose -Verbose -Message "You now have two arrays with found users and groups:"
+    Write-Host -ForegroundColor 'Green' '$FoundUsers | Format-Table ObjectId, UserPrincipalName, DisplayName, ManagerUpn, ManagerDisplayName'
+    Write-Host -ForegroundColor 'Green' '$FoundGroups | Format-Table ObjectId, DisplayName, Description, SecurityEnabled'
+    Write-Host ''
+    Write-Verbose -Verbose -Message "You can export them to CSV like this:"
+    Write-Host -ForegroundColor 'Green' "`$FoundUsers | Export-Csv -NoTypeInformation -Delimiter ';' -Encoding UTF8 -Path 'FoundUsers.csv'"
+    Write-Host -ForegroundColor 'Green' "`$FoundGroups | Export-Csv -NoTypeInformation -Delimiter ';' -Encoding UTF8 -Path 'FoundGroups.csv'"
+    Write-Host ''
+}
+
+
+
 function Export-DCConditionalAccessPolicyDesign {
     <#
         .SYNOPSIS
@@ -2891,4 +3064,203 @@ function New-DCConditionalAccessAssignmentReport {
 
 
     # ----- [End] -----
+}
+
+
+
+function Get-DCCAPLicenseReport {
+    <#
+        .SYNOPSIS
+                Create an Excel report with Azure AD users unlicensed for Conditional Access.
+
+            .DESCRIPTION
+                Create an Excel report with Azure AD users unlicensed for Conditional Access but still signed in during the last 30 days. This is important to know if you for example target Conditional Access policys to 'All users'.
+
+                The script requires you to have permissions to list all users in Azure AD, and to read the sign-ins log, User Admin or Security Reader for example.
+
+                The following is a list of SKUs containing Conditional Access that this script will check for. The script does not check School (A) licenses of government cloud licenses.
+
+                Microsoft cloud SKUs containing Conditional Access:
+                https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
+
+                078d2b04-f1bd-4111-bbd4-b4b1b354cef4
+                AZURE ACTIVE DIRECTORY PREMIUM P1
+
+                84a661c4-e949-4bd2-a560-ed7766fcaf2b
+                AAD_PREMIUM_P2
+
+                efccb6f7-5641-4e0e-bd10-b4976e1bf68e
+                ENTERPRISE MOBILITY + SECURITY E3
+
+                b05e124f-c7cc-45a0-a6aa-8cf78c946968
+                ENTERPRISE MOBILITY + SECURITY E5
+
+                f245ecc8-75af-4f8e-b61f-27d8114de5f3
+                MICROSOFT 365 BUSINESS STANDARD
+
+                cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46
+                MICROSOFT 365 BUSINESS PREMIUM
+
+                05e9a617-0261-4cee-bb44-138d3ef5d965
+                MICROSOFT 365 E3
+
+                06ebc4ee-1bb5-47dd-8120-11324bc54e06
+                Microsoft 365 E5
+
+                26124093-3d78-432b-b5dc-48bf992543d5
+                Microsoft 365 E5 Security
+
+                44ac31e7-2999-4304-ad94-c948886741d4
+                Microsoft 365 E5 Security for EMS E5
+
+                44575883-256e-4a79-9da4-ebe9acabe2b2
+                Microsoft 365 F1
+
+                50f60901-3181-4b75-8a2c-4c8e4c1d5a72
+                Microsoft 365 F1
+
+                66b55226-6b4f-492c-910c-a3b7a3c9d993
+                Microsoft 365 F3
+
+                2347355b-4e81-41a4-9c22-55057a399791
+                Microsoft 365 Security and Compliance for Firstline Workers
+
+            .INPUTS
+                None
+
+            .OUTPUTS
+                Excel report with all unlicensed Conditional Access users who signed in during the last 30 days.
+
+            .NOTES
+                Author:   Daniel Chronlund
+                GitHub:   https://github.com/DanielChronlund/DCToolbox
+                Blog:     https://danielchronlund.com/
+            
+            .EXAMPLE
+                Get-DCCAPLicenseReport
+    #>
+
+
+    # Function to check if there already is an active Azure AD session.
+    function AzureAdConnected {
+        try {
+            $Var = Get-AzureADTenantDetail
+            $true
+        } 
+        catch {
+            $false
+        }
+    }
+
+
+    # List of SKUs with Conditional Access.
+    $ConditionalAccessSKUs = '078d2b04-f1bd-4111-bbd4-b4b1b354cef4',
+    '84a661c4-e949-4bd2-a560-ed7766fcaf2b',
+    'efccb6f7-5641-4e0e-bd10-b4976e1bf68e',
+    'b05e124f-c7cc-45a0-a6aa-8cf78c946968',
+    'f245ecc8-75af-4f8e-b61f-27d8114de5f3',
+    'cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46',
+    '05e9a617-0261-4cee-bb44-138d3ef5d965',
+    '06ebc4ee-1bb5-47dd-8120-11324bc54e06',
+    '26124093-3d78-432b-b5dc-48bf992543d5',
+    '44ac31e7-2999-4304-ad94-c948886741d4',
+    '44575883-256e-4a79-9da4-ebe9acabe2b2',
+    '50f60901-3181-4b75-8a2c-4c8e4c1d5a72',
+    '66b55226-6b4f-492c-910c-a3b7a3c9d993',
+    '2347355b-4e81-41a4-9c22-55057a399791'
+
+
+    # Check if the Excel module is installed.
+    if (Get-Module -ListAvailable -Name "ImportExcel") {
+        # Do nothing.
+    }
+    else {
+        Write-Error -Exception "The Excel PowerShell module is not installed. Please, run 'Install-Module ImportExcel' as an admin and try again." -ErrorAction Stop
+    }
+
+
+    # Connect to Azure AD.
+	if (!(AzureAdConnected)) {
+        Write-Verbose -Verbose -Message "Connecting to Azure AD..."
+		Connect-AzureAD
+	}
+
+
+    # Get all member users from Azure AD.
+    Write-Verbose -Verbose -Message "Fetching all member users in Azure AD..."
+    $AllUsers = Get-AzureADUser -All:$true -Filter "UserType eq 'Member'"
+    Write-Verbose -Verbose -Message "Found $($AllUsers.Count) users!"
+
+
+    # Find out which users that are not licensed for Conditional Access.
+    Write-Verbose -Verbose -Message "Looking fo unlicensed users..."
+    $ProgressCounter = 0
+    $UnlicensedUsers = foreach ($User in $AllUsers) {
+        # Show progress bar.
+        $ProgressCounter += 1
+        [int]$PercentComplete = ($ProgressCounter / $AllUsers.Count) * 100
+        Write-Progress -PercentComplete $PercentComplete -Activity "Processing user $ProgressCounter of $($AllUsers.Count)" -Status "$PercentComplete% Complete"
+
+        if ($User.AssignedLicenses.SkuId) {
+            $HasLicense = $false
+
+            foreach ($SkuId in $User.AssignedLicenses.SkuId) {
+                if ($ConditionalAccessSKUs.Contains($SkuId)) {
+                    $HasLicense = $true
+                }
+            }
+
+            if ($HasLicense -eq $false) {
+                $User
+            }
+        } else {
+            $User
+        }
+    }
+
+    Write-Verbose -Verbose -Message "Found $($UnlicensedUsers.Count) users!"
+
+
+    # Check which unlicensed users that have signed in during the last 30 days.
+    Write-Verbose -Verbose -Message "Searching Azure AD sign-ins logs..."
+    $ProgressCounter = 0
+    $Result = foreach ($User in $UnlicensedUsers) {
+        # Show progress bar.
+        $ProgressCounter += 1
+        [int]$PercentComplete = ($ProgressCounter / $UnlicensedUsers.Count) * 100
+        Write-Progress -PercentComplete $PercentComplete -Activity "Processing user $ProgressCounter of $($UnlicensedUsers.Count)" -Status "$PercentComplete% Complete"
+
+        $LogDetails = Get-AzureADAuditSignInLogs -Filter "UserPrincipalName eq '$($User.UserPrincipalName)' and createdDateTime gt $(Get-Date -Date (Get-Date).AddDays(-30) -Format 'yyyy-MM-dd')" -Top 1 | select CreatedDateTime, UserPrincipalName, IsInteractive, AppDisplayName, IpAddress, @{Name = 'DeviceOS'; Expression = {$_.DeviceDetail.OperatingSystem}}
+
+        # Avoid throttling by delaying requests (common issue with Get-AzureADAuditSignInLogs).
+        Start-Sleep -Milliseconds 500
+
+        $Time = ''
+        if ($LogDetails.CreatedDateTime) {
+            $Time = $(Get-Date -Date $LogDetails.CreatedDateTime)
+        } else {
+            $Time = 'No sign-in for last 30 days'
+        }
+
+        $CustomObject = New-Object -TypeName psobject
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "LastSignIn" -Value $Time
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $User.UserPrincipalName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "AppDisplayName" -Value $LogDetails.AppDisplayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "IpAddress" -Value "'$($LogDetails.IpAddress)'"
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "DeviceOS" -Value $LogDetails.DeviceOS
+
+        $CustomObject
+    }
+
+    $Result = $Result | Sort-Object LastSignIn
+
+
+    # Export the result to Excel.
+    Write-Verbose -Verbose -Message "Exporting report to Excel..."
+    $Path = "$((Get-Location).Path)\Conditional Access Unlicensed User Report $(Get-Date -Format 'yyyy-MM-dd').xlsx"
+    $Result | Export-Excel -Path $Path -WorksheetName "CA Assignments" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -Show
+
+
+    Write-Verbose -Verbose -Message "Saved $Path"
+    Write-Verbose -Verbose -Message "Done!"
 }
