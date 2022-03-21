@@ -12,7 +12,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.24
+Version: 1.0.25
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -273,15 +273,18 @@ help New-DCConditionalAccessAssignmentReport -Full
 # Install required modules (if you are local admin) (only needed first time).
 Install-Module -Name DCToolbox -Force
 Install-Module -Name AzureADPreview -Force
-Install-Package msal.ps -AcceptLicense -Force
+Install-Package msal.ps -Force
 
 # Install required modules as curren user (if you're not local admin) (only needed first time).
 Install-Module -Name DCToolbox -Scope CurrentUser -Force
 Install-Module -Name AzureADPreview -Scope CurrentUser -Force
-Install-Package msal.ps -AcceptLicense -Force
+Install-Package msal.ps -Scope CurrentUser -Force
 
 
 # If you want to, you can run Connect-AzureAD before running Enable-DCAzureADPIMRole, but you don't have to.
+
+# If you want to use another accoutn than your current account using SSO, first connect with this.
+Connect-AzureAD -AccountId 'user@example.com'
 
 # Enable one of your Azure AD PIM roles.
 Enable-DCAzureADPIMRole
@@ -797,13 +800,13 @@ function Get-DCM365Config {
 
     # Function to check if there already is an active MSOL session.
     function MsolConnected {
-		Get-MsolDomain -ErrorAction SilentlyContinue | Out-Null
-		$Result = $?
-		$Result
-	}
+        Get-MsolDomain -ErrorAction SilentlyContinue | Out-Null
+        $Result = $?
+        $Result
+    }
 	
 	
-	# Function to check if there already is an active Azure AD session.
+    # Function to check if there already is an active Azure AD session.
     function AzureAdConnected {
         try {
             $Var = Get-AzureADTenantDetail
@@ -816,162 +819,162 @@ function Get-DCM365Config {
 	
 	
     # Function to add a report row.
-	function Add-ReportRow {
-		param (
-			$Category,
-			$Setting,
-			$Value,
-			$MsolDirSyncFeatures
-		)
+    function Add-ReportRow {
+        param (
+            $Category,
+            $Setting,
+            $Value,
+            $MsolDirSyncFeatures
+        )
 	
-		$CustomObject = New-Object -TypeName psobject
+        $CustomObject = New-Object -TypeName psobject
 	
-		$CustomObject | Add-Member -MemberType NoteProperty -Name "Category" -Value $Category
-		$CustomObject | Add-Member -MemberType NoteProperty -Name "Setting" -Value $Setting
-		$CustomObject | Add-Member -MemberType NoteProperty -Name "Value" -Value $Value
-		$CustomObject | Add-Member -MemberType NoteProperty -Name "Notes" -Value $MsolDirSyncFeatures
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "Category" -Value $Category
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "Setting" -Value $Setting
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "Value" -Value $Value
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "Notes" -Value $MsolDirSyncFeatures
 	
-		$CustomObject
-	}
-	
-	
-	$SkuNames = @(
-		@{SkuPartNumber = "STANDARDPACK"; FriendlyName = "OFFICE 365 E1"},
-		@{SkuPartNumber = "ENTERPRISEPACK"; FriendlyName = "OFFICE 365 E3"},
-		@{SkuPartNumber = "ENTERPRISEPREMIUM"; FriendlyName = "OFFICE 365 E5"},
-		@{SkuPartNumber = "EMS"; FriendlyName = "EMS E3"},
-		@{SkuPartNumber = "EMSPREMIUM"; FriendlyName = "EMS E5"}
-		@{SkuPartNumber = "SMB_BUSINESS_PREMIUM"; FriendlyName = "MICROSOFT 365 BUSINESS STANDARD"}
-		@{SkuPartNumber = "SPB"; FriendlyName = "MICROSOFT 365 BUSINESS PREMIUM"}
-		@{SkuPartNumber = "SPE_E3"; FriendlyName = "Microsoft 365 E3"}
-		@{SkuPartNumber = "SPE_E5"; FriendlyName = "Microsoft 365 E5"}
-		@{SkuPartNumber = "POWER_BI_STANDARD"; FriendlyName = "Power BI Free"}
-		@{SkuPartNumber = "FLOW_FREE"; FriendlyName = "Power Automate Free"}
-		@{SkuPartNumber = "WINDOWS_STORE"; FriendlyName = "Windows Store for Business"}
-		@{SkuPartNumber = "MCOPSTNC"; FriendlyName = "Communications Credits"}
-		@{SkuPartNumber = "RMSBASIC"; FriendlyName = "Azure Rights Management"}
-	)
+        $CustomObject
+    }
 	
 	
-	# Connect to Microsoft 365.
-	if (!(MsolConnected)) {
-		Connect-MsolService
-	}
+    $SkuNames = @(
+        @{SkuPartNumber = "STANDARDPACK"; FriendlyName = "OFFICE 365 E1" },
+        @{SkuPartNumber = "ENTERPRISEPACK"; FriendlyName = "OFFICE 365 E3" },
+        @{SkuPartNumber = "ENTERPRISEPREMIUM"; FriendlyName = "OFFICE 365 E5" },
+        @{SkuPartNumber = "EMS"; FriendlyName = "EMS E3" },
+        @{SkuPartNumber = "EMSPREMIUM"; FriendlyName = "EMS E5" }
+        @{SkuPartNumber = "SMB_BUSINESS_PREMIUM"; FriendlyName = "MICROSOFT 365 BUSINESS STANDARD" }
+        @{SkuPartNumber = "SPB"; FriendlyName = "MICROSOFT 365 BUSINESS PREMIUM" }
+        @{SkuPartNumber = "SPE_E3"; FriendlyName = "Microsoft 365 E3" }
+        @{SkuPartNumber = "SPE_E5"; FriendlyName = "Microsoft 365 E5" }
+        @{SkuPartNumber = "POWER_BI_STANDARD"; FriendlyName = "Power BI Free" }
+        @{SkuPartNumber = "FLOW_FREE"; FriendlyName = "Power Automate Free" }
+        @{SkuPartNumber = "WINDOWS_STORE"; FriendlyName = "Windows Store for Business" }
+        @{SkuPartNumber = "MCOPSTNC"; FriendlyName = "Communications Credits" }
+        @{SkuPartNumber = "RMSBASIC"; FriendlyName = "Azure Rights Management" }
+    )
 	
 	
-	# Connect to Azure AD.
-	if (!(AzureAdConnected)) {
-		Connect-AzureAD
-	}
+    # Connect to Microsoft 365.
+    if (!(MsolConnected)) {
+        Connect-MsolService
+    }
 	
 	
-	# Gather information.
-	$MsolCompanyInformation = Get-MsolCompanyInformation
-	$MsolDomains = Get-MsolDomain
-	$MsolSubscriptions = Get-MsolSubscription
-	$MsolAccountSkus = Get-MsolAccountSku
-	$MsolDirSyncConfiguration = Get-MsolDirSyncConfiguration
-	$MsolDirSyncFeatures = Get-MsolDirSyncFeatures
-	$MsolUser = Get-MsolUser -All:$true
-	$MsolGroup = Get-MsolGroup -All:$true
-	$MsolDevice = Get-MsolDevice -All:$true
-	$MsolContact = Get-MsolContact -All:$true
-	$MsolAdministrativeUnit = Get-MsolAdministrativeUnit -All:$true
-	$AzureADCurrentSessionInfo = Get-AzureADCurrentSessionInfo
-	$AzureADApplicationProxyConnector = Get-AzureADApplicationProxyConnector
-	$AzureADApplications = Get-AzureADApplication
-	$AzureADMSConditionalAccessPolicies = Get-AzureADMSConditionalAccessPolicy
+    # Connect to Azure AD.
+    if (!(AzureAdConnected)) {
+        Connect-AzureAD
+    }
+	
+	
+    # Gather information.
+    $MsolCompanyInformation = Get-MsolCompanyInformation
+    $MsolDomains = Get-MsolDomain
+    $MsolSubscriptions = Get-MsolSubscription
+    $MsolAccountSkus = Get-MsolAccountSku
+    $MsolDirSyncConfiguration = Get-MsolDirSyncConfiguration
+    $MsolDirSyncFeatures = Get-MsolDirSyncFeatures
+    $MsolUser = Get-MsolUser -All:$true
+    $MsolGroup = Get-MsolGroup -All:$true
+    $MsolDevice = Get-MsolDevice -All:$true
+    $MsolContact = Get-MsolContact -All:$true
+    $MsolAdministrativeUnit = Get-MsolAdministrativeUnit -All:$true
+    $AzureADCurrentSessionInfo = Get-AzureADCurrentSessionInfo
+    $AzureADApplicationProxyConnector = Get-AzureADApplicationProxyConnector
+    $AzureADApplications = Get-AzureADApplication
+    $AzureADMSConditionalAccessPolicies = Get-AzureADMSConditionalAccessPolicy
 	
 	
 	
-	$ScriptBlock = {
-		Add-ReportRow -Category "About" -Setting "Report script version" -Value "0.1" -Notes ""
-		Add-ReportRow -Category "About" -Setting "Report generated" -Value (Get-Date) -Notes ""
-		Add-ReportRow -Category "About" -Setting "Generated by" -Value $AzureADCurrentSessionInfo.Account -Notes ""
-		Add-ReportRow -Category "General" -Setting "Organisation" -Value $MsolCompanyInformation.DisplayName -Notes ""
-		Add-ReportRow -Category "General" -Setting "Tenant domain" -Value $AzureADCurrentSessionInfo.TenantDomain -Notes ""
-		Add-ReportRow -Category "General" -Setting "Tenant ID" -Value $AzureADCurrentSessionInfo.TenantId -Notes ""
-		Add-ReportRow -Category "General" -Setting "Environment" -Value $AzureADCurrentSessionInfo.AzureCloud -Notes ""
-		Add-ReportRow -Category "General" -Setting "Preferred language" -Value $MsolCompanyInformation.PreferredLanguage -Notes ""
-		Add-ReportRow -Category "General" -Setting "Street" -Value $MsolCompanyInformation.Street -Notes ""
-		Add-ReportRow -Category "General" -Setting "City" -Value $MsolCompanyInformation.City -Notes ""
-		Add-ReportRow -Category "General" -Setting "State" -Value $MsolCompanyInformation.State -Notes ""
-		Add-ReportRow -Category "General" -Setting "Postal code" -Value $MsolCompanyInformation.PostalCode -Notes ""
-		Add-ReportRow -Category "General" -Setting "Country" -Value $MsolCompanyInformation.Country -Notes ""
-		Add-ReportRow -Category "General" -Setting "Country letter code" -Value $MsolCompanyInformation.CountryLetterCode -Notes ""
-		Add-ReportRow -Category "General" -Setting "Telephone number" -Value $MsolCompanyInformation.TelephoneNumber -Notes ""
-		Add-ReportRow -Category "General" -Setting "Marketing notification emails" -Value $MsolCompanyInformation.MarketingNotificationEmails -Notes ""
-		Add-ReportRow -Category "General" -Setting "Technical notification emails" -Value $MsolCompanyInformation.TechnicalNotificationEmails -Notes ""
+    $ScriptBlock = {
+        Add-ReportRow -Category "About" -Setting "Report script version" -Value "0.1" -Notes ""
+        Add-ReportRow -Category "About" -Setting "Report generated" -Value (Get-Date) -Notes ""
+        Add-ReportRow -Category "About" -Setting "Generated by" -Value $AzureADCurrentSessionInfo.Account -Notes ""
+        Add-ReportRow -Category "General" -Setting "Organisation" -Value $MsolCompanyInformation.DisplayName -Notes ""
+        Add-ReportRow -Category "General" -Setting "Tenant domain" -Value $AzureADCurrentSessionInfo.TenantDomain -Notes ""
+        Add-ReportRow -Category "General" -Setting "Tenant ID" -Value $AzureADCurrentSessionInfo.TenantId -Notes ""
+        Add-ReportRow -Category "General" -Setting "Environment" -Value $AzureADCurrentSessionInfo.AzureCloud -Notes ""
+        Add-ReportRow -Category "General" -Setting "Preferred language" -Value $MsolCompanyInformation.PreferredLanguage -Notes ""
+        Add-ReportRow -Category "General" -Setting "Street" -Value $MsolCompanyInformation.Street -Notes ""
+        Add-ReportRow -Category "General" -Setting "City" -Value $MsolCompanyInformation.City -Notes ""
+        Add-ReportRow -Category "General" -Setting "State" -Value $MsolCompanyInformation.State -Notes ""
+        Add-ReportRow -Category "General" -Setting "Postal code" -Value $MsolCompanyInformation.PostalCode -Notes ""
+        Add-ReportRow -Category "General" -Setting "Country" -Value $MsolCompanyInformation.Country -Notes ""
+        Add-ReportRow -Category "General" -Setting "Country letter code" -Value $MsolCompanyInformation.CountryLetterCode -Notes ""
+        Add-ReportRow -Category "General" -Setting "Telephone number" -Value $MsolCompanyInformation.TelephoneNumber -Notes ""
+        Add-ReportRow -Category "General" -Setting "Marketing notification emails" -Value $MsolCompanyInformation.MarketingNotificationEmails -Notes ""
+        Add-ReportRow -Category "General" -Setting "Technical notification emails" -Value $MsolCompanyInformation.TechnicalNotificationEmails -Notes ""
 	
-		foreach ($MsolDomain in $MsolDomains) {
-			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Domain Name" -Value $MsolDomain.Name -Notes ""
-			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Default" -Value $MsolDomain.IsDefault -Notes ""
-			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Initial" -Value $MsolDomain.IsInitial -Notes ""
-			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Status" -Value $MsolDomain.Status -Notes ""
-			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Verification Method" -Value $MsolDomain.VerificationMethod -Notes ""
-			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Authentication" -Value $MsolDomain.Authentication -Notes ""
-			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Capabilities" -Value $MsolDomain.Capabilities -Notes ""
-			Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Root Domain" -Value $MsolDomain.RootDomain -Notes ""
-		}
+        foreach ($MsolDomain in $MsolDomains) {
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Domain Name" -Value $MsolDomain.Name -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Default" -Value $MsolDomain.IsDefault -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Initial" -Value $MsolDomain.IsInitial -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Status" -Value $MsolDomain.Status -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Verification Method" -Value $MsolDomain.VerificationMethod -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Authentication" -Value $MsolDomain.Authentication -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Capabilities" -Value $MsolDomain.Capabilities -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Root Domain" -Value $MsolDomain.RootDomain -Notes ""
+        }
 	
-		foreach ($MsolAccountSku in ($MsolAccountSkus | Sort-Object ConsumedUnits -Descending)) {
-			$SkuId = $MsolAccountSku.AccountSkuId -replace ".*\:"
-			Add-ReportRow -Category "SKU ($SkuId)" -Setting "Name" -Value "$(($SkuNames | Where-Object { $_.SkuPartNumber -eq $SkuId } ).FriendlyName) (SKU ID: $SkuId)" -Notes ""
-			Add-ReportRow -Category "SKU ($SkuId)" -Setting "Status" -Value ($MsolSubscriptions | Where-Object { $_.SkuPartNumber -eq $SkuId } ).Status -Notes ""
-			Add-ReportRow -Category "SKU ($SkuId)" -Setting "ActiveUnits" -Value $MsolAccountSku.ActiveUnits -Notes ""
-			Add-ReportRow -Category "SKU ($SkuId)" -Setting "ConsumedUnits" -Value $MsolAccountSku.ConsumedUnits -Notes ""
-			Add-ReportRow -Category "SKU ($SkuId)" -Setting "WarningUnits" -Value $MsolAccountSku.WarningUnits -Notes ""
-		}
+        foreach ($MsolAccountSku in ($MsolAccountSkus | Sort-Object ConsumedUnits -Descending)) {
+            $SkuId = $MsolAccountSku.AccountSkuId -replace ".*\:"
+            Add-ReportRow -Category "SKU ($SkuId)" -Setting "Name" -Value "$(($SkuNames | Where-Object { $_.SkuPartNumber -eq $SkuId } ).FriendlyName) (SKU ID: $SkuId)" -Notes ""
+            Add-ReportRow -Category "SKU ($SkuId)" -Setting "Status" -Value ($MsolSubscriptions | Where-Object { $_.SkuPartNumber -eq $SkuId } ).Status -Notes ""
+            Add-ReportRow -Category "SKU ($SkuId)" -Setting "ActiveUnits" -Value $MsolAccountSku.ActiveUnits -Notes ""
+            Add-ReportRow -Category "SKU ($SkuId)" -Setting "ConsumedUnits" -Value $MsolAccountSku.ConsumedUnits -Notes ""
+            Add-ReportRow -Category "SKU ($SkuId)" -Setting "WarningUnits" -Value $MsolAccountSku.WarningUnits -Notes ""
+        }
 	
-		Add-ReportRow -Category "Azure AD" -Setting "Self-Service Password Reset Enabled" -Value $MsolCompanyInformation.SelfServePasswordResetEnabled -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of Users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" } ).Count -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of licensed users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" -and $_.IsLicensed } ).Count -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of unlicensed users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" -and $_.IsLicensed -eq $false } ).Count -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of Guests" -Value ($MsolUser | Where-Object { $_.UserType -eq "Guest" } ).Count -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of Groups" -Value $MsolGroup.Count -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of Devices" -Value $MsolDevice.Count -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of Contacts" -Value $MsolContact.Count -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of Administrative Units" -Value $MsolAdministrativeUnit.Count -Notes ""
-		Add-ReportRow -Category "Azure AD" -Setting "Number of Azure AD app proxy connectors" -Value $AzureADApplicationProxyConnector.Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Self-Service Password Reset Enabled" -Value $MsolCompanyInformation.SelfServePasswordResetEnabled -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of Users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" } ).Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of licensed users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" -and $_.IsLicensed } ).Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of unlicensed users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" -and $_.IsLicensed -eq $false } ).Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of Guests" -Value ($MsolUser | Where-Object { $_.UserType -eq "Guest" } ).Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of Groups" -Value $MsolGroup.Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of Devices" -Value $MsolDevice.Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of Contacts" -Value $MsolContact.Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of Administrative Units" -Value $MsolAdministrativeUnit.Count -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Number of Azure AD app proxy connectors" -Value $AzureADApplicationProxyConnector.Count -Notes ""
 		
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Last Azure AD Connect Sync Time" -Value $MsolCompanyInformation.LastDirSyncTime -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Password Hash Sync Enabled" -Value $MsolCompanyInformation.PasswordSynchronizationEnabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Last Azure AD Connect Sync Time" -Value $MsolCompanyInformation.LastDirSyncTime -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Password Hash Sync Enabled" -Value $MsolCompanyInformation.PasswordSynchronizationEnabled -Notes ""
         Add-ReportRow -Category "Azure AD Connect" -Setting "Password Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "PasswordWriteBack" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Accidental Deletion Threshold" -Value $MsolDirSyncConfiguration.AccidentalDeletionThreshold -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Deletion Prevention Type" -Value $MsolDirSyncConfiguration.DeletionPreventionType -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Device Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DeviceWriteback" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Directory Extensions" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DirectoryExtensions" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate Proxy Address Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateProxyAddressResiliency" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate UPN Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateUPNResiliency" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Enable Soft Match On Upn" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnableSoftMatchOnUpn" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Enforce Cloud Password Policy For Password Synced Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnforceCloudPasswordPolicyForPasswordSyncedUsers" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Synchronize Upn For Managed Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "SynchronizeUpnForManagedUsers" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "Unified Group Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UnifiedGroupWriteback" }).Enabled -Notes ""
-		Add-ReportRow -Category "Azure AD Connect" -Setting "User Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UserWriteback" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Accidental Deletion Threshold" -Value $MsolDirSyncConfiguration.AccidentalDeletionThreshold -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Deletion Prevention Type" -Value $MsolDirSyncConfiguration.DeletionPreventionType -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Device Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DeviceWriteback" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Directory Extensions" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DirectoryExtensions" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate Proxy Address Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateProxyAddressResiliency" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate UPN Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateUPNResiliency" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Enable Soft Match On Upn" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnableSoftMatchOnUpn" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Enforce Cloud Password Policy For Password Synced Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnforceCloudPasswordPolicyForPasswordSyncedUsers" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Synchronize Upn For Managed Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "SynchronizeUpnForManagedUsers" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Unified Group Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UnifiedGroupWriteback" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "User Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UserWriteback" }).Enabled -Notes ""
 	
-		Add-ReportRow -Category "Azure AD Apps" -Setting "Number of enterprise applications" -Value $AzureADApplications.Count -Notes ""
-		foreach ($AzureADApplication in $AzureADApplications) {
-			Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Name" -Value $AzureADApplication.DisplayName -Notes ""
-			Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "App ID" -Value $AzureADApplication.AppId -Notes ""
-			Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Is disabled" -Value $AzureADApplication.IsDisabled -Notes ""
-			Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Available to other tenants" -Value $AzureADApplication.AvailableToOtherTenants -Notes ""
-		}
+        Add-ReportRow -Category "Azure AD Apps" -Setting "Number of enterprise applications" -Value $AzureADApplications.Count -Notes ""
+        foreach ($AzureADApplication in $AzureADApplications) {
+            Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Name" -Value $AzureADApplication.DisplayName -Notes ""
+            Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "App ID" -Value $AzureADApplication.AppId -Notes ""
+            Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Is disabled" -Value $AzureADApplication.IsDisabled -Notes ""
+            Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Available to other tenants" -Value $AzureADApplication.AvailableToOtherTenants -Notes ""
+        }
 	
-		Add-ReportRow -Category "Azure AD Conditional Access" -Setting "Number of Conditional Access policies" -Value $AzureADMSConditionalAccessPolicies.Count -Notes ""
-		foreach ($AzureADMSConditionalAccessPolicy in $AzureADMSConditionalAccessPolicies) {
-			Add-ReportRow -Category "Azure AD Conditional Access ($($AzureADMSConditionalAccessPolicy.DisplayName))" -Setting "Name" -Value $AzureADMSConditionalAccessPolicy.DisplayName -Notes ""
-			Add-ReportRow -Category "Azure AD Conditional Access ($($AzureADMSConditionalAccessPolicy.DisplayName))" -Setting "State" -Value $AzureADMSConditionalAccessPolicy.State -Notes ""
-		}
+        Add-ReportRow -Category "Azure AD Conditional Access" -Setting "Number of Conditional Access policies" -Value $AzureADMSConditionalAccessPolicies.Count -Notes ""
+        foreach ($AzureADMSConditionalAccessPolicy in $AzureADMSConditionalAccessPolicies) {
+            Add-ReportRow -Category "Azure AD Conditional Access ($($AzureADMSConditionalAccessPolicy.DisplayName))" -Setting "Name" -Value $AzureADMSConditionalAccessPolicy.DisplayName -Notes ""
+            Add-ReportRow -Category "Azure AD Conditional Access ($($AzureADMSConditionalAccessPolicy.DisplayName))" -Setting "State" -Value $AzureADMSConditionalAccessPolicy.State -Notes ""
+        }
 	
-		Add-ReportRow -Category "Microsoft 365 Groups" -Setting "Users can create Microsoft 365 groups" -Value $MsolCompanyInformation.UsersPermissionToCreateGroupsEnabled -Notes ""
-	}
-	
-	
-	$Result = Invoke-Command $ScriptBlock
-	$Result #| Format-Table
+        Add-ReportRow -Category "Microsoft 365 Groups" -Setting "Users can create Microsoft 365 groups" -Value $MsolCompanyInformation.UsersPermissionToCreateGroupsEnabled -Notes ""
+    }
 	
 	
-	#$Result | Export-Csv -Delimiter ";" -Encoding "utf8" -NoTypeInformation -Path "Temp.csv"	
+    $Result = Invoke-Command $ScriptBlock
+    $Result #| Format-Table
+	
+	
+    #$Result | Export-Csv -Delimiter ";" -Encoding "utf8" -NoTypeInformation -Path "Temp.csv"	
 }
 
 
@@ -1218,13 +1221,15 @@ function Invoke-DCMsGraphQuery {
         # Run the first query.
         if ($GraphMethod -eq 'GET') {
             $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json"
-        } else {
+        }
+        else {
             $QueryRequest = Invoke-RestMethod -Headers $HeaderParams -Uri $GraphUri -UseBasicParsing -Method $GraphMethod -ContentType "application/json" -Body $GraphBody
         }
         
         if ($QueryRequest.value) {
             $QueryResult += $QueryRequest.value
-        } else {
+        }
+        else {
             $QueryResult += $QueryRequest
         }
 
@@ -1318,7 +1323,7 @@ function Enable-DCAzureADPIMRole {
         # Do nothing.
     }
     else {
-        Write-Error -Exception "The MSAL module is not installed. Please, run 'Install-Package msal.ps -AcceptLicense -Force' as an admin and try again." -ErrorAction Stop
+        Write-Error -Exception "The MSAL module is not installed. Please, run 'Install-Package msal.ps -Force' as an admin and try again." -ErrorAction Stop
     }
 
     # Make sure AzureADPreview is the loaded PowerShell module even if AzureAD is installed.
@@ -1396,7 +1401,7 @@ function Enable-DCAzureADPIMRole {
     Write-Host -ForegroundColor "Yellow" ""
 
     # Check if parameter was specified, and if that is true, enable all roles.
-    if(!($RolesToActivate)) {
+    if (!($RolesToActivate)) {
         # Create a menu and prompt the user for role selection.
 
         # Create a counter.
@@ -1434,7 +1439,8 @@ function Enable-DCAzureADPIMRole {
         }
 
         $RolesToActivate = @($CurrentAccountRoles[$Answer - 1])
-    } else {
+    }
+    else {
         Write-Host 'Roles to activate:'
         Write-Host ''
 
@@ -1457,31 +1463,29 @@ function Enable-DCAzureADPIMRole {
 
     foreach ($Role in $RolesToActivate) {
         # Check if PIM-role is already activated.
-        if ($Role.AssignmentState -eq 'Active') {
-            Write-Warning -Message "Azure AD Role '$($Role.DisplayName)' already activated!"
+        $Duration = 0
+
+        if ($UseMaxiumTimeAllowed) {
+            $Duration = ($Role.maximumGrantPeriodInMinutes / 60)
         }
         else {
-            $Duration = 0
-
-            if ($UseMaxiumTimeAllowed) {
-                $Duration = ($Role.maximumGrantPeriodInMinutes / 60)
-            } else {
-                # Prompt user for duration.
-                if (!($Duration = Read-Host "Duration for '$($Role.DisplayName)' [$($Role.maximumGrantPeriodInMinutes / 60) hour(s)]")) { $Duration = ($Role.maximumGrantPeriodInMinutes / 60) }
+            # Prompt user for duration.
+            if (!($Duration = Read-Host "Duration for '$($Role.DisplayName)' [$($Role.maximumGrantPeriodInMinutes / 60) hour(s)]")) {
+                $Duration = ($Role.maximumGrantPeriodInMinutes / 60) 
             }
-
-            # Create activation schedule based on the current role limit.
-            $Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
-            $Schedule.Type = "Once"
-            $Schedule.StartDateTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-            $Schedule.endDateTime = ((Get-Date).AddHours($Duration)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-
-            # Activate PIM role.
-            Write-Verbose -Verbose -Message "Activating PIM role '$($Role.DisplayName)'..."
-            Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId -RoleDefinitionId $Role.RoleDefinitionId -SubjectId $CurrentAccountId -Type 'UserAdd' -AssignmentState 'Active' -Schedule $Schedule -Reason $Reason | Out-Null
-
-            Write-Verbose -Verbose -Message "$($Role.DisplayName) has been activated until $($Schedule.endDateTime)!"
         }
+
+        # Create activation schedule based on the current role limit.
+        $Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
+        $Schedule.Type = "Once"
+        $Schedule.StartDateTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        $Schedule.endDateTime = ((Get-Date).AddHours($Duration)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+
+        # Activate PIM role.
+        Write-Verbose -Verbose -Message "Activating PIM role '$($Role.DisplayName)'..."
+        Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId -RoleDefinitionId $Role.RoleDefinitionId -SubjectId $CurrentAccountId -Type 'UserAdd' -AssignmentState 'Active' -Schedule $Schedule -Reason $Reason | Out-Null
+
+        Write-Verbose -Verbose -Message "$($Role.DisplayName) has been activated until $($Schedule.endDateTime)!"
     }
 }
 
@@ -1620,7 +1624,7 @@ function Start-DCTorHttpProxy {
 
 
 function Test-DCAzureAdUserExistence {
-	<#
+    <#
         .SYNOPSIS
             Test if an account exists in Azure AD for specified email addresses.
         
@@ -1653,60 +1657,60 @@ function Test-DCAzureAdUserExistence {
 	#>
 
 
-	param (
-		[parameter(Mandatory = $true)]
-		[array]$Users,
+    param (
+        [parameter(Mandatory = $true)]
+        [array]$Users,
 
-		[parameter(Mandatory = $false)]
-		[switch]$UseTorHttpProxy
-	)
+        [parameter(Mandatory = $false)]
+        [switch]$UseTorHttpProxy
+    )
 
-	foreach ($User in $Users) {
-		# Create custom object for output.
-		$TestObject = New-Object -TypeName psobject
+    foreach ($User in $Users) {
+        # Create custom object for output.
+        $TestObject = New-Object -TypeName psobject
 
-		# Add username.
-		$TestObject | Add-Member -MemberType NoteProperty -Name "Username" -Value $User
+        # Add username.
+        $TestObject | Add-Member -MemberType NoteProperty -Name "Username" -Value $User
 
-		# Check if user account exists in Azure AD.
-		$IfExistsResult = 1
+        # Check if user account exists in Azure AD.
+        $IfExistsResult = 1
 
-		if ($UseTorHttpProxy) {
-			$IfExistsResult = ((Invoke-WebRequest -Proxy "http://127.0.0.1:9150" -Method "POST" -Uri "https://login.microsoftonline.com/common/GetCredentialType" -Body "{`"Username`":`"$User`"}").Content | ConvertFrom-Json).IfExistsResult
-		}
-		else {
-			$IfExistsResult = ((Invoke-WebRequest -Method "POST" -Uri "https://login.microsoftonline.com/common/GetCredentialType" -Body "{`"Username`":`"$User`"}").Content | ConvertFrom-Json).IfExistsResult
-		}
+        if ($UseTorHttpProxy) {
+            $IfExistsResult = ((Invoke-WebRequest -Proxy "http://127.0.0.1:9150" -Method "POST" -Uri "https://login.microsoftonline.com/common/GetCredentialType" -Body "{`"Username`":`"$User`"}").Content | ConvertFrom-Json).IfExistsResult
+        }
+        else {
+            $IfExistsResult = ((Invoke-WebRequest -Method "POST" -Uri "https://login.microsoftonline.com/common/GetCredentialType" -Body "{`"Username`":`"$User`"}").Content | ConvertFrom-Json).IfExistsResult
+        }
 
-		if ($IfExistsResult -eq 0) {   
-			# Check domain federation status.
-			[xml]$Response = ""
+        if ($IfExistsResult -eq 0) {   
+            # Check domain federation status.
+            [xml]$Response = ""
 
-			if ($UseTorHttpProxy) {
-				[xml]$Response = (Invoke-WebRequest -Proxy "http://127.0.0.1:9150" -Uri "https://login.microsoftonline.com/getuserrealm.srf?login=$User&xml=1").Content
-			}
-			else {
-				[xml]$Response = (Invoke-WebRequest -Uri "https://login.microsoftonline.com/getuserrealm.srf?login=$User&xml=1").Content
-			}
+            if ($UseTorHttpProxy) {
+                [xml]$Response = (Invoke-WebRequest -Proxy "http://127.0.0.1:9150" -Uri "https://login.microsoftonline.com/getuserrealm.srf?login=$User&xml=1").Content
+            }
+            else {
+                [xml]$Response = (Invoke-WebRequest -Uri "https://login.microsoftonline.com/getuserrealm.srf?login=$User&xml=1").Content
+            }
 
-			# Add org information.
-			$TestObject | Add-Member -MemberType NoteProperty -Name "Org" -Value $Response.RealmInfo.FederationBrandName
+            # Add org information.
+            $TestObject | Add-Member -MemberType NoteProperty -Name "Org" -Value $Response.RealmInfo.FederationBrandName
 			
-			# If domain is Federated we can't tell if the account exists or not :(
-			if ($Response.RealmInfo.IsFederatedNS -eq $true) {
-				$TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "Unknown (federated domain: $((($Response.RealmInfo.AuthURL -split "//")[1] -split "/")[0]))"
-			}
-			# If the domain is Managed (not federated) we can tell if an account exists in Azure AD :)
-			else {
-				$TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "Yes"
-			}
-		}
-		else {
-			$TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "No"
-		}
+            # If domain is Federated we can't tell if the account exists or not :(
+            if ($Response.RealmInfo.IsFederatedNS -eq $true) {
+                $TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "Unknown (federated domain: $((($Response.RealmInfo.AuthURL -split "//")[1] -split "/")[0]))"
+            }
+            # If the domain is Managed (not federated) we can tell if an account exists in Azure AD :)
+            else {
+                $TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "Yes"
+            }
+        }
+        else {
+            $TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "No"
+        }
 
-		$TestObject
-	}   
+        $TestObject
+    }   
 }
 
 
@@ -1743,24 +1747,24 @@ function Test-DCAzureAdCommonAdmins {
 	#>
 
 	
-	param (
-		[parameter(Mandatory = $true)]
-		[array]$Domains,
+    param (
+        [parameter(Mandatory = $true)]
+        [array]$Domains,
 		
-		[parameter(Mandatory = $false)]
-		[switch]$UseTorHttpProxy
-	)
+        [parameter(Mandatory = $false)]
+        [switch]$UseTorHttpProxy
+    )
 
-	$CommonAdminUsernames = "admin@DOMAINNAME",
-	"administrator@DOMAINNAME",
+    $CommonAdminUsernames = "admin@DOMAINNAME",
+    "administrator@DOMAINNAME",
     "root@DOMAINNAME",
     "system@DOMAINNAME",
     "operator@DOMAINNAME",
     "super@DOMAINNAME",
-	"breakglass@DOMAINNAME",
-	"breakglass1@DOMAINNAME",
-	"breakglass2@DOMAINNAME",
-	"serviceaccount@DOMAINNAME",
+    "breakglass@DOMAINNAME",
+    "breakglass1@DOMAINNAME",
+    "breakglass2@DOMAINNAME",
+    "serviceaccount@DOMAINNAME",
     "service@DOMAINNAME",
     "srv@DOMAINNAME",
     "svc@DOMAINNAME",
@@ -1771,17 +1775,17 @@ function Test-DCAzureAdCommonAdmins {
     "sharepoint@DOMAINNAME",
     "teams@DOMAINNAME",
     "azure@DOMAINNAME",
-	"user@DOMAINNAME",
+    "user@DOMAINNAME",
     "user1@DOMAINNAME",
     "user01@DOMAINNAME",
     "guest@DOMAINNAME",
-	"test@DOMAINNAME",
+    "test@DOMAINNAME",
     "test1@DOMAINNAME",
     "test01@DOMAINNAME",
     "testing@DOMAINNAME",
-	"test.test@DOMAINNAME",
-	"test.testsson@DOMAINNAME",
-	"demo@DOMAINNAME",
+    "test.test@DOMAINNAME",
+    "test.testsson@DOMAINNAME",
+    "demo@DOMAINNAME",
     "backup@DOMAINNAME",
     "print@DOMAINNAME",
     "sa@DOMAINNAME",
@@ -1789,20 +1793,20 @@ function Test-DCAzureAdCommonAdmins {
     "mysql@DOMAINNAME",
     "oracle@DOMAINNAME"
 
-	foreach ($Domain in $Domains) {
-		if ($UseTorHttpProxy) {
-			Test-DCAzureAdUserExistence -UseTorHttpProxy -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
-		}
-		else {
-			Test-DCAzureAdUserExistence -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
-		}
-	}   
+    foreach ($Domain in $Domains) {
+        if ($UseTorHttpProxy) {
+            Test-DCAzureAdUserExistence -UseTorHttpProxy -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
+        }
+        else {
+            Test-DCAzureAdUserExistence -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
+        }
+    }   
 }
 
 
 
 function Test-DCLegacyAuthentication {
-	<#
+    <#
         .SYNOPSIS
             Test if legacy authentication is allowed in Office 365 for a particular user.
         
@@ -1836,10 +1840,10 @@ function Test-DCLegacyAuthentication {
 	#>
 
 
-	param (
-		[parameter(Mandatory = $true)]
-		[PSCredential]$Credential
-	)
+    param (
+        [parameter(Mandatory = $true)]
+        [PSCredential]$Credential
+    )
 
 
     try {
@@ -1852,10 +1856,12 @@ function Test-DCLegacyAuthentication {
 
         # Return true if legacy authentication is allowed..
         $true
-    } catch {
+    }
+    catch {
         if ($_.ErrorDetails.Message -like "*401*" -or $_.ErrorDetails.Message -like "*403*") {
             Write-Host -ForegroundColor 'Green' "AUTHENTICATION FAILED: Legacy authentication failed for $($Credential.UserName) in Office 365!"
-        } else {
+        }
+        else {
             Write-Error $_.ErrorDetails.Message
         }
 
@@ -1868,7 +1874,7 @@ function Test-DCLegacyAuthentication {
 
 
 function Get-DCAzureADUsersAndGroupsAsGuest {
-	<#
+    <#
         .SYNOPSIS
             This script lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Azure AD is set to the default configuration.
         
@@ -1911,16 +1917,16 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
 	#>
 
 
-	param (
-		[parameter(Mandatory = $true)]
-		[string]$TenantId,
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$TenantId,
 
         [parameter(Mandatory = $true)]
-		[string]$AccountId,
+        [string]$AccountId,
 
         [parameter(Mandatory = $true)]
-		[string[]]$InterestingUsers
-	)
+        [string[]]$InterestingUsers
+    )
 
 
     # Connect to the target tenant as a guest.
@@ -1953,7 +1959,7 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
         Write-Verbose -Verbose -Message "Starting round $i..."
 
         foreach ($User in $global:FoundUsers) {
-            $Groups = Get-AzureADUserMembership -ObjectID $User.UserPrincipalName | where DisplayName -ne $null
+            $Groups = Get-AzureADUserMembership -ObjectID $User.UserPrincipalName | Where-Object DisplayName -NE $null
 
             foreach ($Group in $Groups) {
                 if ($global:FoundGroups.ObjectId) {
@@ -1966,7 +1972,8 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
 
                         try {
                             $Members = Get-AzureADGroupMember -All:$true -ObjectId $Group.ObjectId -ErrorAction SilentlyContinue
-                        } catch {
+                        }
+                        catch {
                             # Do nothing.
                         }
 
@@ -1981,7 +1988,8 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
                             }
                         }
                     }
-                } else {
+                }
+                else {
                     Write-Verbose -Verbose -Message "Processing group '$($Group.DisplayName)'..."
                     
                     $global:FoundGroups += $Group
@@ -1990,7 +1998,8 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
 
                     try {
                         $Members = Get-AzureADGroupMember -All:$true -ObjectId $Group.ObjectId -ErrorAction SilentlyContinue
-                    } catch {
+                    }
+                    catch {
                         # Do nothing.
                     }
 
@@ -2089,7 +2098,6 @@ function Export-DCConditionalAccessPolicyDesign {
                 ClientSecret = ''
                 FilePath = 'C:\Temp\Conditional Access.json'
             }
-
             Export-DCConditionalAccessPolicyDesign @Parameters
         
         .EXAMPLE
@@ -2099,7 +2107,6 @@ function Export-DCConditionalAccessPolicyDesign {
                 FilePath = 'C:\Temp\Conditional Access.json'
                 PrefixFilter = 'RING1'
             }
-
             Export-DCConditionalAccessPolicyDesign @Parameters
     #>
 
@@ -2148,14 +2155,15 @@ function Export-DCConditionalAccessPolicyDesign {
 
     if ($PrefixFilter) {
         $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies?`$filter=startsWith(displayName,'$PrefixFilter')"
-    } else {
+    }
+    else {
         $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
     }
 
     Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri | Sort-Object createdDateTime | ConvertTo-Json -Depth 10 | Out-File -Force:$true -FilePath $FilePath
 
     # Perform some clean up in the file.
-    $CleanUp = Get-Content $FilePath | Select-String -Pattern '"id":', '"createdDateTime":', '"modifiedDateTime":' -notmatch
+    $CleanUp = Get-Content $FilePath | Select-String -Pattern '"id":', '"createdDateTime":', '"modifiedDateTime":' -NotMatch
 
     $CleanUp | Out-File -Force:$true -FilePath $FilePath
 
@@ -2471,10 +2479,16 @@ function New-DCConditionalAccessPolicyDesignReport {
 
         # includeUsers
         $Users = foreach ($User in $Policy.conditions.users.includeUsers) {
-            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers'-and $User -ne 'None') {
+            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers' -and $User -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/users/$User"
-                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
-            } else {
+                try {
+                    (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
+                }
+                catch {
+                    # Do nothing.
+                }
+            }
+            else {
                 $User
             }
         }
@@ -2484,10 +2498,16 @@ function New-DCConditionalAccessPolicyDesignReport {
 
         # excludeUsers
         $Users = foreach ($User in $Policy.conditions.users.excludeUsers) {
-            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers'-and $User -ne 'None') {
+            if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers' -and $User -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/users/$User"
-                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
-            } else {
+                try {
+                    (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
+                }
+                catch {
+                    # Do nothing.
+                }
+            }
+            else {
                 $User
             }
         }
@@ -2499,8 +2519,14 @@ function New-DCConditionalAccessPolicyDesignReport {
         $Groups = foreach ($Group in $Policy.conditions.users.includeGroups) {
             if ($Group -ne 'All' -and $Group -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/groups/$Group"
-                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
-            } else {
+                try {
+                    (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+                }
+                catch {
+                    # Do nothing.
+                }
+            }
+            else {
                 $Group
             }
         }
@@ -2512,8 +2538,14 @@ function New-DCConditionalAccessPolicyDesignReport {
         $Groups = foreach ($Group in $Policy.conditions.users.excludeGroups) {
             if ($Group -ne 'All' -and $Group -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/groups/$Group"
-                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
-            } else {
+                try {
+                    (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+                }
+                catch {
+                    # Do nothing.
+                }
+            }
+            else {
                 $Group
             }
         }
@@ -2528,10 +2560,12 @@ function New-DCConditionalAccessPolicyDesignReport {
 
                 if ($RoleToCheck) {
                     $RoleToCheck
-                } else {
+                }
+                else {
                     $Role
                 }
-            } else {
+            }
+            else {
                 $Role
             }
         }
@@ -2546,10 +2580,12 @@ function New-DCConditionalAccessPolicyDesignReport {
 
                 if ($RoleToCheck) {
                     $RoleToCheck
-                } else {
+                }
+                else {
                     $Role
                 }
-            } else {
+            }
+            else {
                 $Role
             }
         }
@@ -2561,7 +2597,8 @@ function New-DCConditionalAccessPolicyDesignReport {
         $Applications = foreach ($Application in $Policy.conditions.applications.includeApplications) {
             if ($Application -ne 'None' -and $Application -ne 'All' -and $Application -ne 'Office365') {
                 ($EnterpriseApps | Where-Object { $_.appID -eq $Application }).displayName
-            } else {
+            }
+            else {
                 $Application
             }
         }
@@ -2573,7 +2610,8 @@ function New-DCConditionalAccessPolicyDesignReport {
         $Applications = foreach ($Application in $Policy.conditions.applications.excludeApplications) {
             if ($Application -ne 'None' -and $Application -ne 'All' -and $Application -ne 'Office365') {
                 ($EnterpriseApps | Where-Object { $_.appID -eq $Application }).displayName
-            } else {
+            }
+            else {
                 $Application
             }
         }
@@ -2610,9 +2648,11 @@ function New-DCConditionalAccessPolicyDesignReport {
             if ($includeLocation -ne 'All' -and $includeLocation -ne 'AllTrusted' -and $includeLocation -ne '00000000-0000-0000-0000-000000000000') {
                 $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/$includeLocation"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
-            } elseif ($includeLocation -eq '00000000-0000-0000-0000-000000000000') {
+            }
+            elseif ($includeLocation -eq '00000000-0000-0000-0000-000000000000') {
                 'MFA Trusted IPs'
-            } else {
+            }
+            else {
                 $includeLocation
             }
         }
@@ -2625,9 +2665,11 @@ function New-DCConditionalAccessPolicyDesignReport {
             if ($excludeLocation -ne 'All' -and $excludeLocation -ne 'AllTrusted' -and $excludeLocation -ne '00000000-0000-0000-0000-000000000000') {
                 $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/$excludeLocation"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
-            } elseif ($excludeLocation -eq '00000000-0000-0000-0000-000000000000') {
+            }
+            elseif ($excludeLocation -eq '00000000-0000-0000-0000-000000000000') {
                 'MFA Trusted IPs'
-            } else {
+            }
+            else {
                 $excludeLocation
             }
         }
@@ -2805,7 +2847,12 @@ function New-DCConditionalAccessAssignmentReport {
         Write-Verbose -Verbose -Message "Getting include groups for policy $($Policy.displayName)..."
         $includeGroupsDisplayName = foreach ($Object in $Policy.conditions.users.includeGroups) {
             $GraphUri = "https://graph.microsoft.com/v1.0/groups/$Object"
-            (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+            try {
+                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+            }
+            catch {
+                # Do nothing.
+            }
         }
         
         $CustomObject | Add-Member -MemberType NoteProperty -Name "includeGroupsDisplayName" -Value $includeGroupsDisplayName
@@ -2815,7 +2862,12 @@ function New-DCConditionalAccessAssignmentReport {
         Write-Verbose -Verbose -Message "Getting exclude groups for policy $($Policy.displayName)..."
         $excludeGroupsDisplayName = foreach ($Object in $Policy.conditions.users.excludeGroups) {
             $GraphUri = "https://graph.microsoft.com/v1.0/groups/$Object"
-            (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+            try {
+                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
+            }
+            catch {
+                # Do nothing.
+            }
         }
 
         $CustomObject | Add-Member -MemberType NoteProperty -Name "excludeGroupsDisplayName" -Value $excludeGroupsDisplayName
@@ -2826,7 +2878,12 @@ function New-DCConditionalAccessAssignmentReport {
         $includeUsersUserPrincipalName = foreach ($Object in $Policy.conditions.users.includeUsers) {
             if ($Object -ne "All" -and $Object -ne "GuestsOrExternalUsers" -and $Object -ne "None") {
                 $GraphUri = "https://graph.microsoft.com/v1.0/users/$Object"
-                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction "Continue").userPrincipalName
+                try {
+                    (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction "Continue").userPrincipalName
+                }
+                catch {
+                    # Do nothing.
+                }
             }
             else {
                 $Object
@@ -2847,7 +2904,12 @@ function New-DCConditionalAccessAssignmentReport {
         $excludeUsersUserPrincipalName = foreach ($Object in $Policy.conditions.users.excludeUsers) {
             if ($Object -ne "All" -and $Object -ne "GuestsOrExternalUsers" -and $Object -ne "None") {
                 $GraphUri = "https://graph.microsoft.com/v1.0/users/$Object"
-                (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction "Continue").userPrincipalName
+                try {
+                    (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction "Continue").userPrincipalName
+                }
+                catch {
+                    # Do nothing.
+                }
             }
             else {
                 $Object
@@ -2867,11 +2929,12 @@ function New-DCConditionalAccessAssignmentReport {
         Write-Verbose -Verbose -Message "Getting include roles for policy $($Policy.displayName)..."
         $includeRolesDisplayName = foreach ($Object in $Policy.conditions.users.includeRoles) {
             $GraphUri = "https://graph.microsoft.com/v1.0/directoryRoles/roleTemplateId=$Object"
-            $RoleInfo = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+            $RoleInfo = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction SilentlyContinue
             
             if ($RoleInfo.displayName) {
                 $RoleInfo.displayName
-            } else {
+            }
+            else {
                 $Object
             }
         }
@@ -2883,11 +2946,12 @@ function New-DCConditionalAccessAssignmentReport {
         Write-Verbose -Verbose -Message "Getting exclude roles for policy $($Policy.displayName)..."
         $excludeRolesDisplayName = foreach ($Object in $Policy.conditions.users.excludeRoles) {
             $GraphUri = "https://graph.microsoft.com/v1.0/directoryRoles/roleTemplateId=$Object"
-            $RoleInfo = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+            $RoleInfo = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri -ErrorAction SilentlyContinue
             
             if ($RoleInfo.displayName) {
                 $RoleInfo.displayName
-            } else {
+            }
+            else {
                 $Object
             }
         }
@@ -3180,10 +3244,10 @@ function Get-DCCAPLicenseReport {
 
 
     # Connect to Azure AD.
-	if (!(AzureAdConnected)) {
+    if (!(AzureAdConnected)) {
         Write-Verbose -Verbose -Message "Connecting to Azure AD..."
-		Connect-AzureAD
-	}
+        Connect-AzureAD
+    }
 
 
     # Get all member users from Azure AD.
@@ -3213,7 +3277,8 @@ function Get-DCCAPLicenseReport {
             if ($HasLicense -eq $false) {
                 $User
             }
-        } else {
+        }
+        else {
             $User
         }
     }
@@ -3230,7 +3295,7 @@ function Get-DCCAPLicenseReport {
         [int]$PercentComplete = ($ProgressCounter / $UnlicensedUsers.Count) * 100
         Write-Progress -PercentComplete $PercentComplete -Activity "Processing user $ProgressCounter of $($UnlicensedUsers.Count)" -Status "$PercentComplete% Complete"
 
-        $LogDetails = Get-AzureADAuditSignInLogs -Filter "UserPrincipalName eq '$($User.UserPrincipalName)' and createdDateTime gt $(Get-Date -Date (Get-Date).AddDays(-30) -Format 'yyyy-MM-dd')" -Top 1 | select CreatedDateTime, UserPrincipalName, IsInteractive, AppDisplayName, IpAddress, @{Name = 'DeviceOS'; Expression = {$_.DeviceDetail.OperatingSystem}}
+        $LogDetails = Get-AzureADAuditSignInLogs -Filter "UserPrincipalName eq '$($User.UserPrincipalName)' and createdDateTime gt $(Get-Date -Date (Get-Date).AddDays(-30) -Format 'yyyy-MM-dd')" -Top 1 | Select-Object CreatedDateTime, UserPrincipalName, IsInteractive, AppDisplayName, IpAddress, @{Name = 'DeviceOS'; Expression = { $_.DeviceDetail.OperatingSystem } }
 
         # Avoid throttling by delaying requests (common issue with Get-AzureADAuditSignInLogs).
         Start-Sleep -Milliseconds 500
@@ -3238,7 +3303,8 @@ function Get-DCCAPLicenseReport {
         $Time = ''
         if ($LogDetails.CreatedDateTime) {
             $Time = $(Get-Date -Date $LogDetails.CreatedDateTime)
-        } else {
+        }
+        else {
             $Time = 'No sign-in for last 30 days'
         }
 
