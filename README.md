@@ -36,6 +36,10 @@ Explore and copy script examples to your clipboard with:
 
 <h2>Included Tools</h2>
 
+<h3>New-DCM365ConfigReport</h3>
+
+Gather basic configuration settings from a Microsoft 365 tenant and crates an Excel report.
+
 <h3>Connect-DCMsGraphAsDelegated</h3>
 
 Gather basic configuration data from a Microsoft 365 tenant.

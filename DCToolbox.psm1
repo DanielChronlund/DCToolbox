@@ -1,5 +1,8 @@
 function Get-DCHelp {
-    $HelpText = @'
+    $DCToolboxVersion = '1.0.26'
+
+
+    $HelpText = @"
 
     ____  ____________            ____              
    / __ \/ ____/_  __/___  ____  / / /_  ____  _  __
@@ -12,7 +15,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 ---------------------------------------------------
 
 Author: Daniel Chronlund
-Version: 1.0.25
+Version: $DCToolboxVersion
 
 This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
@@ -25,7 +28,7 @@ Please follow me on my blog https://danielchronlund.com, on LinkedIn and on Twit
 
 To get started, explore and copy script examples to your clipboard with:
 
-'@
+"@
 
     Write-Host -ForegroundColor "Yellow" $HelpText
     Write-Host -ForegroundColor "Cyan" "Copy-DCExample"
@@ -293,7 +296,7 @@ Enable-DCAzureADPIMRole
 Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
 
 # Fully automate Azure AD PIM role activation.
-Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaxiumTimeAllowed -Reason 'Performing some Exchange security coniguration according to change #12345.'
+Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaximumTimeAllowed -Reason 'Performing some Exchange security coniguration according to change #12345.'
 
 <#
     Example output:
@@ -420,6 +423,56 @@ foreach ($User in $AllUsersWithPhoneAuthentication) {
         catch {
             Write-Warning -Message "Could not delete phone method '$($phoneMethod.phoneType)' for $($User.userPrincipalName)! Is it the users default authentication method?"
         }
+    }
+}
+
+
+break
+
+# BONUS SCRIPT: LIST ALL GUEST USERS WITH SMS AS A REGISTERED AUTHENTICATION METHOD.
+
+# First, create app registration and grant it:
+#  User.Read.All
+#  UserAuthenticationMethod.Read.All
+#  Reports.Read.All
+
+
+# Connect to Microsoft Graph with delegated permissions.
+Write-Verbose -Verbose -Message 'Connecting to Microsoft Graph...'
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+}
+
+$AccessToken = Connect-DCMsGraphAsDelegated @Parameters
+
+
+# Fetch user authentication methods.
+Write-Verbose -Verbose -Message 'Fetching all users with any phone authentication methods registered...'
+$Parameters = @{
+    AccessToken = $AccessToken
+    GraphMethod = 'GET'
+    GraphUri    = "https://graph.microsoft.com/beta/reports/credentialUserRegistrationDetails?`$filter=authMethods/any(t:t eq microsoft.graph.registrationAuthMethod'mobilePhone') or authMethods/any(t:t eq microsoft.graph.registrationAuthMethod'officePhone')"
+}
+
+$AllUsersWithPhoneAuthentication = Invoke-DCMsGraphQuery @Parameters
+
+
+# Fetch all guest users.
+Write-Verbose -Verbose -Message 'Fetching all guest users...'
+$Parameters = @{
+    AccessToken = $AccessToken
+    GraphMethod = 'GET'
+    GraphUri    = "https://graph.microsoft.com/beta/users?`$filter=userType eq 'Guest'"
+}
+
+$AllGuestUsers = Invoke-DCMsGraphQuery @Parameters
+
+
+# Check how many users who have an authentication phone number registered.
+foreach ($Guest in $AllGuestUsers) {
+    if ($AllUsersWithPhoneAuthentication.userPrincipalName.Contains($Guest.UserPrincipalName)) {
+        Write-Output "$($Guest.displayName) ($($Guest.mail))"
     }
 }
                             
@@ -771,19 +824,19 @@ X
 
 
 
-function Get-DCM365Config {
+function New-DCM365ConfigReport {
     <#
         .SYNOPSIS
-            Gather basic configuration data from a Microsoft 365 tenant.
+            Gather basic configuration settings from a Microsoft 365 tenant and crates an Excel report.
 
         .DESCRIPTION
-            This CMDlet will prompt you to sign in to Azure AD and MSOL. The purpose of this tool is to quickly inventory tenant configuration and possibly document it in Excel.
+            This CMDlet will prompt you to sign in to Azure AD and MSOL. The purpose of this tool is to quickly inventory tenant configuration and document it in Excel.
             
         .INPUTS
             None
 
         .OUTPUTS
-            A PowerShell object containing all gathered data.
+            An Excel report.
 
         .NOTES
             Author:   Daniel Chronlund
@@ -791,21 +844,46 @@ function Get-DCM365Config {
             Blog:     https://danielchronlund.com/
         
         .EXAMPLE
-            Get-DCM365Config
-        
-        .EXAMPLE
-            Get-DCM365Config | ConvertTo-Csv -NoTypeInformation -Delimiter ';' | Set-Clipboard
+            New-DCM365ConfigReport
     #>
+	
 
-
-    # Function to check if there already is an active MSOL session.
-    function MsolConnected {
-        Get-MsolDomain -ErrorAction SilentlyContinue | Out-Null
-        $Result = $?
-        $Result
+    # Check if the Azure AD Preview module is installed.
+    if (Get-Module -ListAvailable -Name "AzureADPreview") {
+        # Do nothing.
+    } 
+    else {
+        Write-Error -Exception "The Azure AD Preview PowerShell module is not installed. Please, run 'Install-Module AzureADPreview -Force' as an admin and try again." -ErrorAction Stop
     }
-	
-	
+
+
+    # Check if the MSOnline module is installed.
+    if (Get-Module -ListAvailable -Name "MSOnline") {
+        # Do nothing.
+    } 
+    else {
+        Write-Error -Exception "The Azure AD Preview PowerShell module is not installed. Please, run 'Install-Module MSOnline -Force' as an admin and try again." -ErrorAction Stop
+    }
+
+
+    # Check if the Exchange Online v2 module is installed.
+    if (Get-Module -ListAvailable -Name "ExchangeOnlineManagement") {
+        # Do nothing.
+    } 
+    else {
+        Write-Error -Exception "The Exchange Online v2 PowerShell module is not installed. Please, run 'Install-Module ExchangeOnlineManagement -Force' as an admin and try again." -ErrorAction Stop
+    }
+
+
+    # Check if the Excel module is installed.
+    if (Get-Module -ListAvailable -Name "ImportExcel") {
+        # Do nothing.
+    }
+    else {
+        Write-Error -Exception "The Excel PowerShell module is not installed. Please, run 'Install-Module ImportExcel' as an admin and try again." -ErrorAction Stop
+    }
+
+
     # Function to check if there already is an active Azure AD session.
     function AzureAdConnected {
         try {
@@ -814,6 +892,25 @@ function Get-DCM365Config {
         } 
         catch {
             $false
+        }
+    }
+
+
+    # Function to check if there already is an active MSOL session.
+    function MsolConnected {
+        Get-MsolDomain -ErrorAction SilentlyContinue | Out-Null
+        $Result = $?
+        $Result
+    }
+
+
+    # Function to check if there already is an active Exchange Online session.
+    function EXOConnected {
+        try {
+            Get-EXOMailbox -ResultSize 1 -ErrorAction SilentlyContinue | Out-Null
+        } catch {
+            $Result = $?
+        $Result
         }
     }
 	
@@ -838,6 +935,7 @@ function Get-DCM365Config {
     }
 	
 	
+    # SKU friendly names.
     $SkuNames = @(
         @{SkuPartNumber = "STANDARDPACK"; FriendlyName = "OFFICE 365 E1" },
         @{SkuPartNumber = "ENTERPRISEPACK"; FriendlyName = "OFFICE 365 E3" },
@@ -856,19 +954,29 @@ function Get-DCM365Config {
     )
 	
 	
+    # Connect to Azure AD.
+    Write-Verbose -Verbose -Message "Connecting (1 or 3) to Azure AD..."
+    if (!(AzureAdConnected)) {
+        Connect-AzureAD | Out-Null
+    }
+
+
     # Connect to Microsoft 365.
+    Write-Verbose -Verbose -Message "Connecting (2 or 3) to MSOnline..."
     if (!(MsolConnected)) {
         Connect-MsolService
     }
-	
-	
-    # Connect to Azure AD.
-    if (!(AzureAdConnected)) {
-        Connect-AzureAD
+
+
+    # Connect to Exchange Online.
+    Write-Verbose -Verbose -Message "Connecting (3 or 3) to Exchange Online..."
+    if (!(EXOConnected)) {
+        Connect-ExchangeOnline -ShowBanner:$false
     }
 	
 	
-    # Gather information.
+    # Gather tenant configuration.
+    Write-Verbose -Verbose -Message "Gathering tenant configuration..."
     $MsolCompanyInformation = Get-MsolCompanyInformation
     $MsolDomains = Get-MsolDomain
     $MsolSubscriptions = Get-MsolSubscription
@@ -877,24 +985,24 @@ function Get-DCM365Config {
     $MsolDirSyncFeatures = Get-MsolDirSyncFeatures
     $MsolUser = Get-MsolUser -All:$true
     $MsolGroup = Get-MsolGroup -All:$true
-    $MsolDevice = Get-MsolDevice -All:$true
+    $MsolDevice = @(Get-MsolDevice -All:$true)
     $MsolContact = Get-MsolContact -All:$true
     $MsolAdministrativeUnit = Get-MsolAdministrativeUnit -All:$true
     $AzureADCurrentSessionInfo = Get-AzureADCurrentSessionInfo
+    $CurrentUser = Get-AzureADUser | where ObjectID -eq $AzureADCurrentSessionInfo.Account
     $AzureADApplicationProxyConnector = Get-AzureADApplicationProxyConnector
     $AzureADApplications = Get-AzureADApplication
     $AzureADMSConditionalAccessPolicies = Get-AzureADMSConditionalAccessPolicy
 	
 	
-	
     $ScriptBlock = {
-        Add-ReportRow -Category "About" -Setting "Report script version" -Value "0.1" -Notes ""
+        Add-ReportRow -Category "About" -Setting "Report script version" -Value "DCToolbox 1.0.26" -Notes ""
         Add-ReportRow -Category "About" -Setting "Report generated" -Value (Get-Date) -Notes ""
-        Add-ReportRow -Category "About" -Setting "Generated by" -Value $AzureADCurrentSessionInfo.Account -Notes ""
-        Add-ReportRow -Category "General" -Setting "Organisation" -Value $MsolCompanyInformation.DisplayName -Notes ""
+        Add-ReportRow -Category "About" -Setting "Generated by" -Value "$($CurrentUser.DisplayName) ($($CurrentUser.UserPrincipalName))" -Notes ""
+        Add-ReportRow -Category "General" -Setting "Organization" -Value $MsolCompanyInformation.DisplayName -Notes ""
         Add-ReportRow -Category "General" -Setting "Tenant domain" -Value $AzureADCurrentSessionInfo.TenantDomain -Notes ""
         Add-ReportRow -Category "General" -Setting "Tenant ID" -Value $AzureADCurrentSessionInfo.TenantId -Notes ""
-        Add-ReportRow -Category "General" -Setting "Environment" -Value $AzureADCurrentSessionInfo.AzureCloud -Notes ""
+        Add-ReportRow -Category "General" -Setting "Environment" -Value $AzureADCurrentSessionInfo.Environment -Notes ""
         Add-ReportRow -Category "General" -Setting "Preferred language" -Value $MsolCompanyInformation.PreferredLanguage -Notes ""
         Add-ReportRow -Category "General" -Setting "Street" -Value $MsolCompanyInformation.Street -Notes ""
         Add-ReportRow -Category "General" -Setting "City" -Value $MsolCompanyInformation.City -Notes ""
@@ -902,14 +1010,14 @@ function Get-DCM365Config {
         Add-ReportRow -Category "General" -Setting "Postal code" -Value $MsolCompanyInformation.PostalCode -Notes ""
         Add-ReportRow -Category "General" -Setting "Country" -Value $MsolCompanyInformation.Country -Notes ""
         Add-ReportRow -Category "General" -Setting "Country letter code" -Value $MsolCompanyInformation.CountryLetterCode -Notes ""
-        Add-ReportRow -Category "General" -Setting "Telephone number" -Value $MsolCompanyInformation.TelephoneNumber -Notes ""
-        Add-ReportRow -Category "General" -Setting "Marketing notification emails" -Value $MsolCompanyInformation.MarketingNotificationEmails -Notes ""
-        Add-ReportRow -Category "General" -Setting "Technical notification emails" -Value $MsolCompanyInformation.TechnicalNotificationEmails -Notes ""
+        Add-ReportRow -Category "General" -Setting "Contact phone number" -Value $MsolCompanyInformation.TelephoneNumber -Notes ""
+        Add-ReportRow -Category "General" -Setting "Marketing notification emails" -Value $MsolCompanyInformation.MarketingNotificationEmails[0].ToString() -Notes ""
+        Add-ReportRow -Category "General" -Setting "Technical notification emails" -Value $MsolCompanyInformation.TechnicalNotificationEmails[0].ToString() -Notes ""
 	
         foreach ($MsolDomain in $MsolDomains) {
             Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Domain Name" -Value $MsolDomain.Name -Notes ""
-            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Default" -Value $MsolDomain.IsDefault -Notes ""
-            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Initial" -Value $MsolDomain.IsInitial -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Default" -Value $MsolDomain.IsDefault.ToString() -Notes ""
+            Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Is Initial" -Value $MsolDomain.IsInitial.ToString() -Notes ""
             Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Status" -Value $MsolDomain.Status -Notes ""
             Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Verification Method" -Value $MsolDomain.VerificationMethod -Notes ""
             Add-ReportRow -Category "Domain ($($MsolDomain.Name))" -Setting "Authentication" -Value $MsolDomain.Authentication -Notes ""
@@ -926,38 +1034,43 @@ function Get-DCM365Config {
             Add-ReportRow -Category "SKU ($SkuId)" -Setting "WarningUnits" -Value $MsolAccountSku.WarningUnits -Notes ""
         }
 	
-        Add-ReportRow -Category "Azure AD" -Setting "Self-Service Password Reset Enabled" -Value $MsolCompanyInformation.SelfServePasswordResetEnabled -Notes ""
+        Add-ReportRow -Category "Azure AD" -Setting "Self-Service Password Reset Enabled" -Value $MsolCompanyInformation.SelfServePasswordResetEnabled.ToString() -Notes ""
         Add-ReportRow -Category "Azure AD" -Setting "Number of Users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" } ).Count -Notes ""
         Add-ReportRow -Category "Azure AD" -Setting "Number of licensed users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" -and $_.IsLicensed } ).Count -Notes ""
         Add-ReportRow -Category "Azure AD" -Setting "Number of unlicensed users" -Value ($MsolUser | Where-Object { $_.UserType -eq "Member" -and $_.IsLicensed -eq $false } ).Count -Notes ""
         Add-ReportRow -Category "Azure AD" -Setting "Number of Guests" -Value ($MsolUser | Where-Object { $_.UserType -eq "Guest" } ).Count -Notes ""
         Add-ReportRow -Category "Azure AD" -Setting "Number of Groups" -Value $MsolGroup.Count -Notes ""
         Add-ReportRow -Category "Azure AD" -Setting "Number of Devices" -Value $MsolDevice.Count -Notes ""
+
+        foreach ($OsType in ($MsolDevice.DeviceOsType | Select-Object -Unique)) {
+            Add-ReportRow -Category "Azure AD" -Setting "Number of $OsType Devices" -Value ($MsolDevice | where DeviceOsType -eq $OsType).Count -Notes ""
+        }
+
         Add-ReportRow -Category "Azure AD" -Setting "Number of Contacts" -Value $MsolContact.Count -Notes ""
         Add-ReportRow -Category "Azure AD" -Setting "Number of Administrative Units" -Value $MsolAdministrativeUnit.Count -Notes ""
         Add-ReportRow -Category "Azure AD" -Setting "Number of Azure AD app proxy connectors" -Value $AzureADApplicationProxyConnector.Count -Notes ""
 		
         Add-ReportRow -Category "Azure AD Connect" -Setting "Last Azure AD Connect Sync Time" -Value $MsolCompanyInformation.LastDirSyncTime -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Password Hash Sync Enabled" -Value $MsolCompanyInformation.PasswordSynchronizationEnabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Password Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "PasswordWriteBack" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Password Hash Sync Enabled" -Value $MsolCompanyInformation.PasswordSynchronizationEnabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Password Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "PasswordWriteBack" }).Enabled.ToString() -Notes ""
         Add-ReportRow -Category "Azure AD Connect" -Setting "Accidental Deletion Threshold" -Value $MsolDirSyncConfiguration.AccidentalDeletionThreshold -Notes ""
         Add-ReportRow -Category "Azure AD Connect" -Setting "Deletion Prevention Type" -Value $MsolDirSyncConfiguration.DeletionPreventionType -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Device Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DeviceWriteback" }).Enabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Directory Extensions" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DirectoryExtensions" }).Enabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate Proxy Address Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateProxyAddressResiliency" }).Enabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate UPN Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateUPNResiliency" }).Enabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Enable Soft Match On Upn" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnableSoftMatchOnUpn" }).Enabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Enforce Cloud Password Policy For Password Synced Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnforceCloudPasswordPolicyForPasswordSyncedUsers" }).Enabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Synchronize Upn For Managed Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "SynchronizeUpnForManagedUsers" }).Enabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "Unified Group Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UnifiedGroupWriteback" }).Enabled -Notes ""
-        Add-ReportRow -Category "Azure AD Connect" -Setting "User Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UserWriteback" }).Enabled -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Device Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DeviceWriteback" }).Enabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Directory Extensions" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DirectoryExtensions" }).Enabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate Proxy Address Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateProxyAddressResiliency" }).Enabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Duplicate UPN Resiliency" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "DuplicateUPNResiliency" }).Enabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Enable Soft Match On Upn" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnableSoftMatchOnUpn" }).Enabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Enforce Cloud Password Policy For Password Synced Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "EnforceCloudPasswordPolicyForPasswordSyncedUsers" }).Enabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Synchronize Upn For Managed Users" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "SynchronizeUpnForManagedUsers" }).Enabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "Unified Group Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UnifiedGroupWriteback" }).Enabled.ToString() -Notes ""
+        Add-ReportRow -Category "Azure AD Connect" -Setting "User Writeback" -Value ($MsolDirSyncFeatures | Where-Object { $_.DirSyncFeature -eq "UserWriteback" }).Enabled.ToString() -Notes ""
 	
         Add-ReportRow -Category "Azure AD Apps" -Setting "Number of enterprise applications" -Value $AzureADApplications.Count -Notes ""
         foreach ($AzureADApplication in $AzureADApplications) {
             Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Name" -Value $AzureADApplication.DisplayName -Notes ""
             Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "App ID" -Value $AzureADApplication.AppId -Notes ""
             Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Is disabled" -Value $AzureADApplication.IsDisabled -Notes ""
-            Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Available to other tenants" -Value $AzureADApplication.AvailableToOtherTenants -Notes ""
+            Add-ReportRow -Category "Azure AD Apps ($($AzureADApplication.DisplayName))" -Setting "Available to other tenants" -Value $AzureADApplication.AvailableToOtherTenants.ToString() -Notes ""
         }
 	
         Add-ReportRow -Category "Azure AD Conditional Access" -Setting "Number of Conditional Access policies" -Value $AzureADMSConditionalAccessPolicies.Count -Notes ""
@@ -966,15 +1079,32 @@ function Get-DCM365Config {
             Add-ReportRow -Category "Azure AD Conditional Access ($($AzureADMSConditionalAccessPolicy.DisplayName))" -Setting "State" -Value $AzureADMSConditionalAccessPolicy.State -Notes ""
         }
 	
-        Add-ReportRow -Category "Microsoft 365 Groups" -Setting "Users can create Microsoft 365 groups" -Value $MsolCompanyInformation.UsersPermissionToCreateGroupsEnabled -Notes ""
+        Add-ReportRow -Category "Microsoft 365 Groups" -Setting "Users can create Microsoft 365 groups" -Value $MsolCompanyInformation.UsersPermissionToCreateGroupsEnabled.ToString() -Notes ""
+
+
+        # Exchange Online.
+        $SMTPDomains = Get-Mailbox -ResultSize Unlimited | Select-Object EmailAddresses -ExpandProperty EmailAddresses | Where-Object { $_ -like "smtp*"} | ForEach-Object { ($_ -split "@")[1] } | Sort-Object -Unique | Where-Object { $_ -notlike '*onmicrosoft.com' }
+
+        foreach ($Domain in $SMTPDomains) {
+            Add-ReportRow -Category "EXO SMTP Domain ($Domain)" -Setting "SPF Record" -Value (((nslookup -q=txt $Domain 2>$null) | Select-String "spf1") -replace "`t", "") -Notes ""
+            Add-ReportRow -Category "EXO SMTP Domain ($Domain)" -Setting "DKIM Selector 1 Record" -Value ((nslookup -q=cname selector1._domainkey.$Domain 2>$null) | Select-String "canonical name") -Notes ""
+            Add-ReportRow -Category "EXO SMTP Domain ($Domain)" -Setting "DKIM Selector 2 Record" -Value ((nslookup -q=cname selector2._domainkey.$Domain 2>$null) | Select-String "canonical name") -Notes ""
+            Add-ReportRow -Category "EXO SMTP Domain ($Domain)" -Setting "DMARC Record" -Value (((nslookup -q=txt _dmarc.$Domain 2>$null) | Select-String "DMARC1") -replace "`t", "") -Notes ""
+        }
     }
 	
 	
     $Result = Invoke-Command $ScriptBlock
-    $Result #| Format-Table
-	
-	
-    #$Result | Export-Csv -Delimiter ";" -Encoding "utf8" -NoTypeInformation -Path "Temp.csv"	
+
+
+    # Export the result to Excel.
+    Write-Verbose -Verbose -Message "Exporting report to Excel..."
+    $Path = "$((Get-Location).Path)\M365 Config Report $(Get-Date -Format 'yyyy-MM-dd').xlsx"
+    $Result | Export-Excel -Path $Path -WorksheetName "M365 Config" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -NoNumberConversion * -Show
+
+
+    Write-Verbose -Verbose -Message "Saved $Path"
+    Write-Verbose -Verbose -Message "Done!"
 }
 
 
@@ -1259,9 +1389,9 @@ function Enable-DCAzureADPIMRole {
             Activate an Azure AD Privileged Identity Management (PIM) role with PowerShell.
 
         .DESCRIPTION
-            Uses the Azure AD Preview module and the MSAL module to activate a user selected Azure AD role in Azure AD Privileged Identity Management (PIM) with PowerShell. It uses MSAL to force an MFA prompt, even if not required. This is needed because PIM role activation often requires MFA approval.
+            Uses the Azure AD module and the MSAL module to activate a user selected Azure AD role in Azure AD Privileged Identity Management (PIM) with PowerShell. It uses MSAL to force an MFA prompt, even if not required. This is needed because PIM role activation often requires MFA approval.
 
-            During activation, the user will be primpted to specify a reason for the activation.
+            During activation, the user will be prompted to specify a reason for the activation.
         
         .PARAMETER RolesToActivate
             This parameter is optional but if you specify it, you can select multiple roles to activate at ones.
@@ -1269,8 +1399,8 @@ function Enable-DCAzureADPIMRole {
         .PARAMETER Reason
             Specify the reason for activating your roles.
 
-        .PARAMETER UseMaxiumTimeAllowed
-            Use this switch to automatically request maxium allowed time for all role assignments.
+        .PARAMETER UseMaximumTimeAllowed
+            Use this switch to automatically request maximum allowed time for all role assignments.
             
         .INPUTS
             None
@@ -1290,10 +1420,10 @@ function Enable-DCAzureADPIMRole {
             Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
 
         .EXAMPLE
-            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaxiumTimeAllowed
+            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaximumTimeAllowed
 
         .EXAMPLE
-            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -Reason 'Performing some Exchange security coniguration.' -UseMaxiumTimeAllowed
+            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -Reason 'Performing some Exchange security configuration.' -UseMaximumTimeAllowed
     #>
 
     param (
@@ -1304,7 +1434,7 @@ function Enable-DCAzureADPIMRole {
         [string]$Reason,
 
         [parameter(Mandatory = $false)]
-        [switch]$UseMaxiumTimeAllowed
+        [switch]$UseMaximumTimeAllowed
     )
 
     # Set Error Action - Possible choices: Stop, SilentlyContinue
@@ -1465,7 +1595,7 @@ function Enable-DCAzureADPIMRole {
         # Check if PIM-role is already activated.
         $Duration = 0
 
-        if ($UseMaxiumTimeAllowed) {
+        if ($UseMaximumTimeAllowed) {
             $Duration = ($Role.maximumGrantPeriodInMinutes / 60)
         }
         else {
