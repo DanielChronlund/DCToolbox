@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '1.0.26'
+    $DCToolboxVersion = '1.0.27'
 
 
     $HelpText = @"
@@ -2098,7 +2098,7 @@ function New-DCStaleAccountReport {
     $Parameters = @{
         AccessToken = $AccessToken
         GraphMethod = 'GET'
-        GraphUri = "https://graph.microsoft.com/beta/users?select=displayName,userPrincipalName,userType,companyName,department,country,signInActivity"
+        GraphUri = "https://graph.microsoft.com/beta/users?select=displayName,userPrincipalName,userType,accountEnabled,onPremisesSyncEnabled,companyName,department,country,signInActivity,assignedLicenses"
     }
 
     $Result = Invoke-DCMsGraphQuery @Parameters
@@ -2106,17 +2106,30 @@ function New-DCStaleAccountReport {
 
     # Format the result.
     $Result2 = foreach ($User in $Result) {
-        if ($User.signInActivity -eq $null -or (Get-Date -Date $User.signInActivity.lastSignInDateTime) -lt ((Get-Date -Date (Get-Date -Format 'yyyy-MM-dd')).AddDays(-$LastSeenDaysAgo))) {
+        if ($null -eq $User.signInActivity -or (Get-Date -Date $User.signInActivity.lastSignInDateTime) -lt ((Get-Date -Date (Get-Date -Format 'yyyy-MM-dd')).AddDays(-$LastSeenDaysAgo))) {
             $CustomObject = New-Object -TypeName psobject
-            $CustomObject | Add-Member -MemberType NoteProperty -Name "id" -Value $User.id
+
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "lastSignInDateTime" -Value $User.signInActivity.lastSignInDateTime
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "lastNonInteractiveSignInDateTime" -Value $User.signInActivity.lastNonInteractiveSignInDateTime
+
             $CustomObject | Add-Member -MemberType NoteProperty -Name "DisplayName" -Value $User.DisplayName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "userPrincipalName" -Value $User.userPrincipalName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "userType" -Value $User.userType
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "accountEnabled" -Value $User.accountEnabled
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "onPremisesSyncEnabled" -Value $User.onPremisesSyncEnabled
+
+            if ($User.assignedLicenses.skuId) {
+                $CustomObject | Add-Member -MemberType NoteProperty -Name "assignedLicenses" -Value $true
+            } else {
+                $CustomObject | Add-Member -MemberType NoteProperty -Name "assignedLicenses" -Value $false
+            }
+
             $CustomObject | Add-Member -MemberType NoteProperty -Name "companyName" -Value $User.companyName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "department" -Value $User.department
             $CustomObject | Add-Member -MemberType NoteProperty -Name "country" -Value $User.country
-            $CustomObject | Add-Member -MemberType NoteProperty -Name "lastSignInDateTime" -Value $User.signInActivity.lastSignInDateTime
-            $CustomObject | Add-Member -MemberType NoteProperty -Name "lastNonInteractiveSignInDateTime" -Value $User.signInActivity.lastNonInteractiveSignInDateTime
+
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "id" -Value $User.id
+
             $CustomObject
         }
     }
