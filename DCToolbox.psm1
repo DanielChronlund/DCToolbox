@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '1.0.27'
+    $DCToolboxVersion = '1.0.28'
 
 
     $HelpText = @"
@@ -337,7 +337,7 @@ help Enable-DCAzureADPIMRole -Full
             }
             4 {
                 $Snippet = @'
-# Learn of to set this up.
+# Learn how to set this up.
 Get-Help New-DCStaleAccountReport -Full
 
 
