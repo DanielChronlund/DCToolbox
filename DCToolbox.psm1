@@ -2182,6 +2182,9 @@ function Export-DCConditionalAccessPolicyDesign {
 
         .PARAMETER PrefixFilter
             Only export the policys with this prefix.
+        
+        .PARAMETER SuffixFilter
+        Only export the policys with this suffix.
 
         .INPUTS
             None
@@ -2210,6 +2213,15 @@ function Export-DCConditionalAccessPolicyDesign {
                 PrefixFilter = 'RING1'
             }
             Export-DCConditionalAccessPolicyDesign @Parameters
+        
+         .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+                SuffixFilter = 'RING1'
+            }
+            Export-DCConditionalAccessPolicyDesign @Parameters
     #>
 
 
@@ -2217,6 +2229,7 @@ function Export-DCConditionalAccessPolicyDesign {
     # ----- [Initialisations] -----
 
     # Script parameters.
+    [CmdletBinding(DefaultParameterSetName = 'PrefixFilter')]
     param (
         [parameter(Mandatory = $true)]
         [string]$ClientID,
@@ -2227,8 +2240,13 @@ function Export-DCConditionalAccessPolicyDesign {
         [parameter(Mandatory = $false)]
         [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json",
 
-        [parameter(Mandatory = $false)]
-        [string]$PrefixFilter
+        [parameter(Mandatory = $false,
+            ParameterSetName = 'PrefixFilter')]
+        [string]$PrefixFilter,
+
+        [parameter(Mandatory = $false,
+            ParameterSetName = 'SuffixFilter')]
+        [string]$SuffixFilter
     )
 
 
@@ -2249,6 +2267,10 @@ function Export-DCConditionalAccessPolicyDesign {
         Write-Verbose -Verbose -Message "Prefix filter was set and only policies beginning with '$PrefixFilter' will be exported!"
     }
 
+    if ($SuffixFilter) {
+        Write-Verbose -Verbose -Message "Suffix filter was set and only policies ending with '$SuffixFilter' will be exported!"
+    }
+
 
     # Export all Conditional Access policies from Microsoft Graph as JSON.
     Write-Verbose -Verbose -Message "Exporting Conditional Access policies to '$FilePath'..."
@@ -2257,6 +2279,13 @@ function Export-DCConditionalAccessPolicyDesign {
 
     if ($PrefixFilter) {
         $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies?`$filter=startsWith(displayName,'$PrefixFilter')"
+    }
+    else {
+        $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
+    }
+
+    if ($SuffixFilter) {
+        $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies?`$filter=endsWith(displayName,'$SuffixFilter')"
     }
     else {
         $GraphUri = 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies'
@@ -2321,6 +2350,9 @@ function Import-DCConditionalAccessPolicyDesign {
 
         .PARAMETER PrefixFilter
             Only import (and delete) the policys with this prefix in the JSON file.
+
+        .PARAMETER SuffixFilter
+            Only import (and delete) the policys with this suffix in the JSON file.
             
         .INPUTS
             JSON file containing your Conditional Access policies.
@@ -2355,6 +2387,18 @@ function Import-DCConditionalAccessPolicyDesign {
             }
 
             Import-DCConditionalAccessPolicyDesign @Parameters
+        
+        .EXAMPLE
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                FilePath = 'C:\Temp\Conditional Access.json'
+                SkipReportOnlyMode = $true
+                DeleteAllExistingPolicies = $true
+                SuffixFilter = 'RING2'
+            }
+
+            Import-DCConditionalAccessPolicyDesign @Parameters
     #>
 
 
@@ -2362,6 +2406,7 @@ function Import-DCConditionalAccessPolicyDesign {
     # ----- [Initialisations] -----
 
     # Script parameters.
+    CmdletBinding(DefaultParameterSetName = 'PrefixFilter')]
     param (
         [parameter(Mandatory = $true)]
         [string]$ClientID,
@@ -2378,8 +2423,13 @@ function Import-DCConditionalAccessPolicyDesign {
         [parameter(Mandatory = $false)]
         [switch]$DeleteAllExistingPolicies,
 
-        [parameter(Mandatory = $false)]
-        [string]$PrefixFilter
+        [parameter(Mandatory = $false,
+            ParameterSetName = 'PrefixFilter')]
+        [string]$PrefixFilter,
+
+        [parameter(Mandatory = $false,
+            ParameterSetName = 'SuffixFilter')]
+        [string]$SuffixFilter
     )
 
 
@@ -2398,6 +2448,10 @@ function Import-DCConditionalAccessPolicyDesign {
     # Show filter settings.
     if ($PrefixFilter) {
         Write-Verbose -Verbose -Message "Prefix filter was set and only policies beginning with '$PrefixFilter' will be affected!"
+    }
+
+    if ($SuffixFilter) {
+        Write-Verbose -Verbose -Message "Suffix filter was set and only policies ending with '$SuffixFilter' will be affected!"
     }
 
 
@@ -2426,6 +2480,13 @@ function Import-DCConditionalAccessPolicyDesign {
     
                 Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri -ErrorAction SilentlyContinue | Out-Null
             }
+
+            if ($Policy.displayName.EndsWith($SuffixFilter)) {
+                Start-Sleep -Seconds 1
+                $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$($Policy.id)"
+    
+                Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'DELETE' -GraphUri $GraphUri -ErrorAction SilentlyContinue | Out-Null
+            }
         }
     }
 
@@ -2437,6 +2498,19 @@ function Import-DCConditionalAccessPolicyDesign {
 
     foreach ($Policy in $ConditionalAccessPolicies) {
         if ($Policy.displayName.StartsWith($PrefixFilter)) {
+            Start-Sleep -Seconds 1
+            Write-Verbose -Verbose -Message "Creating '$($Policy.DisplayName)'..."
+
+            try {
+                # Create new policies.
+                Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'POST' -GraphUri $GraphUri -GraphBody ($Policy | ConvertTo-Json -Depth 10) | Out-Null
+            }
+            catch {
+                Write-Error -Message $_.Exception.Message -ErrorAction Continue
+            }
+        }
+
+        if ($Policy.displayName.EndsWith($SuffixFilter)) {
             Start-Sleep -Seconds 1
             Write-Verbose -Verbose -Message "Creating '$($Policy.DisplayName)'..."
 
