@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '1.0.28'
+    $DCToolboxVersion = '1.0.29'
 
 
     $HelpText = @"
@@ -889,24 +889,34 @@ function New-DCM365AssetInventoryReport {
     }
 
 
+    # Disconnect any previous connection to Microsoft Graph.
+    try {
+        Disconnect-MgGraph
+    } catch {
+        # Do nothing.
+    }
+
+
     # Connect to Microsoft Graph.
-    Connect-MgGraph -Scopes 'Directory.Read.All', 'User.Read.All'
+    Connect-MgGraph -ForceRefresh -Scopes 'Directory.Read.All'
 
 	
     # Function to add a report row.
     function Add-ReportRow {
         param (
+            $CreatedDateTime,
             $Type,
-            $Name,
             $ObjectId,
+            $Name,
             $Details
         )
 	
         $CustomObject = New-Object -TypeName psobject
 	
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "CreatedDateTime" -Value $CreatedDateTime
         $CustomObject | Add-Member -MemberType NoteProperty -Name "Type" -Value $Type
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value $Name
         $CustomObject | Add-Member -MemberType NoteProperty -Name "ObjectId" -Value $ObjectId
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value $Name
         $CustomObject | Add-Member -MemberType NoteProperty -Name "Details" -Value $Details
 	
         $CustomObject
@@ -915,17 +925,68 @@ function New-DCM365AssetInventoryReport {
 	
     # Gather tenant data.
     Write-Verbose -Verbose -Message "Gathering tenant data..."
-    $Users = Get-MgUser
-    $Devices = Get-MgDevice
+
+    $RoleAssignments = Get-MgRoleManagementDirectoryRoleAssignment -All:$true
+
+    $Users = Get-MgUser -All:$true -Property CreatedDateTime, Id, UserPrincipalName, DisplayName, MobilePhone, UserType, JobTitle, CompanyName, Department, City, Country, AccountEnabled, OnPremisesSyncEnabled, AssignedLicenses
+
+    $EnterpriseApps = Get-MgApplication -All:$true -Property CreatedDateTime, DisplayName, AppId, Description, Notes, Owners
+
+    $Devices = Get-MgDevice -All:$true -Property DeviceId, DisplayName, AccountEnabled, ProfileType, TrustType, IsManaged, IsCompliant, RegisteredOwners, RegisteredUsers, ApproximateLastSignInDateTime, OnPremisesSyncEnabled, DeletedDateTime, OperatingSystem, OperatingSystemVersion, AdditionalProperties
 	
 	
     $ScriptBlock = {
-        foreach ($User in ($Users | where UserType -eq '')) {
-            Add-ReportRow -Type 'UserAccount' -Name $User.UserPrincipalName -ObjectId $User.Id -Details "Test"   
+        foreach ($RoleAssignment in $RoleAssignments) {
+            try {
+                $User = Get-MgUser -UserId $RoleAssignment.PrincipalId -ErrorAction SilentlyContinue
+            } catch {
+                # Do nothing.
+            }
+        
+            if ($User) {
+                Add-ReportRow -CreatedDateTime "" -Type 'DirectoryRoleAssignment' -ObjectId $RoleAssignment.Id -Name (Get-MgRoleManagementDirectoryRoleDefinition -Filter "Id eq '$($RoleAssignment.RoleDefinitionId)'").DisplayName -Details "UserPrincipalName: $($User.UserPrincipalName)"
+            }
+        }
+
+
+        foreach ($User in ($Users | where UserType -eq 'Member' | Sort-Object UserPrincipalName)) {
+            $LicenseEnabled = if ($User.AssignedLicenses) {
+                $true
+            } else {
+                $false
+            }
+
+            $OnPremisesSyncEnabled = if ($User.OnPremisesSyncEnabled) {
+                $true
+            } else {
+                $false
+            }
+
+            Add-ReportRow -CreatedDateTime $User.CreatedDateTime -Type 'UserAccount' -ObjectId $User.Id -Name $User.UserPrincipalName -Details "DisplayName: $($User.DisplayName); MobilePhone: $($User.MobilePhone); UserType: $($User.UserType); JobTitle: $($User.JobTitle); CompanyName: $($User.CompanyName); Department: $($User.Department); City: $($User.City); Country: $($User.Country); AccountEnabled: $($User.AccountEnabled); OnPremisesSyncEnabled: $OnPremisesSyncEnabled; AssignedLicenses: $LicenseEnabled"
+        }
+
+        foreach ($User in ($Users | where UserType -eq 'Guest' | Sort-Object UserPrincipalName)) {
+            Add-ReportRow -CreatedDateTime $User.CreatedDateTime -Type 'GuestAccount' -ObjectId $User.Id -Name $User.UserPrincipalName -Details "DisplayName: $($User.DisplayName); MobilePhone: $($User.MobilePhone); UserType: $($User.UserType); JobTitle: $($User.JobTitle); CompanyName: $($User.CompanyName); Department: $($User.Department); City: $($User.City); Country: $($User.Country); AccountEnabled: $($User.AccountEnabled)"
+        }
+
+        foreach ($App in $EnterpriseApps) {
+            Add-ReportRow -CreatedDateTime $App.CreatedDateTime -Type 'EnterpriseApp' -ObjectId $App.AppId -Name $App.DisplayName -Details "Description: $($App.Description); Notes: $($App.Notes); Owners: $($App.Owners);"
+        }
+
+        foreach ($Device in ($Devices | Sort-Object DisplayName)) {
+            $OnPremisesSyncEnabled = if ($Device.OnPremisesSyncEnabled) {
+                $true
+            } else {
+                $false
+            }
+
+            Add-ReportRow -CreatedDateTime $Device.AdditionalProperties.createdDateTime -Type 'Device' -ObjectId $Device.DeviceId -Name $Device.DisplayName -Details "AccountEnabled: $($Device.AccountEnabled); ProfileType: $($Device.ProfileType); TrustType: $($Device.TrustType); IsManaged: $($Device.IsManaged); IsCompliant: $($Device.IsCompliant); RegisteredOwners: $($Device.RegisteredOwners); RegisteredUsers: $($Device.RegisteredUsers); ApproximateLastSignInDateTime: $($Device.ApproximateLastSignInDateTime); OnPremisesSyncEnabled: $OnPremisesSyncEnabled; DeletedDateTime: $($Device.DeletedDateTime); OperatingSystem: $($Device.OperatingSystem); OperatingSystemVersion: $($Device.OperatingSystemVersion);"
         }
     }
 	
 	
+    $Result = $Result | Sort-Object CreatedDateTime
+
     $Result = Invoke-Command $ScriptBlock
 
 
@@ -1306,7 +1367,6 @@ function Enable-DCAzureADPIMRole {
     # Check if already connected to Azure AD.
     if (!(AzureAdConnected)) {
         # Try to force MFA challenge (since it is often required for PIM role activation).
-
         Write-Verbose -Verbose -Message 'Connecting to Azure AD...'
 
         # Get token for MS Graph by prompting for MFA.
@@ -2074,7 +2134,13 @@ function New-DCStaleAccountReport {
         [string]$ClientSecret,
 
         [parameter(Mandatory = $false)]
-        [int]$LastSeenDaysAgo = 30
+        [int]$LastSeenDaysAgo = 30,
+
+        [parameter(Mandatory = $false)]
+        [switch]$OnlyMembers,
+
+        [parameter(Mandatory = $false)]
+        [switch]$OnlyGuests
     )
 
 
@@ -2095,10 +2161,20 @@ function New-DCStaleAccountReport {
 
 
     # GET data.
+    $GraphUri = ''
+
+    if ($OnlyMembers) {
+        $GraphUri = "https://graph.microsoft.com/beta/users?select=displayName,userPrincipalName,userType,accountEnabled,onPremisesSyncEnabled,companyName,department,country,signInActivity,assignedLicenses&`$filter=userType eq 'Member'"
+    } elseif ($OnlyGuests) {
+        $GraphUri = "https://graph.microsoft.com/beta/users?select=displayName,userPrincipalName,userType,accountEnabled,onPremisesSyncEnabled,companyName,department,country,signInActivity,assignedLicenses&`$filter=userType eq 'Guest'"
+    } else {
+        $GraphUri = "https://graph.microsoft.com/beta/users?select=displayName,userPrincipalName,userType,accountEnabled,onPremisesSyncEnabled,companyName,department,country,signInActivity,assignedLicenses"
+    }
+
     $Parameters = @{
         AccessToken = $AccessToken
         GraphMethod = 'GET'
-        GraphUri = "https://graph.microsoft.com/beta/users?select=displayName,userPrincipalName,userType,accountEnabled,onPremisesSyncEnabled,companyName,department,country,signInActivity,assignedLicenses"
+        GraphUri = $GraphUri
     }
 
     $Result = Invoke-DCMsGraphQuery @Parameters
@@ -2106,11 +2182,32 @@ function New-DCStaleAccountReport {
 
     # Format the result.
     $Result2 = foreach ($User in $Result) {
-        if ($null -eq $User.signInActivity -or (Get-Date -Date $User.signInActivity.lastSignInDateTime) -lt ((Get-Date -Date (Get-Date -Format 'yyyy-MM-dd')).AddDays(-$LastSeenDaysAgo))) {
+        # Compare sign in date against non-interactive sign-in date.
+        try {
+            $lastSignInDateTime = Get-Date -Date $User.signInActivity.lastSignInDateTime
+        } catch {
+            $lastSignInDateTime = $null
+        }
+
+        try {
+            $lastNonInteractiveSignInDateTime = Get-Date -Date $User.signInActivity.lastNonInteractiveSignInDateTime
+        } catch {
+            $lastNonInteractiveSignInDateTime = $null
+        }
+
+        $LastSignInActivity = Get-Date
+        
+        if ($lastNonInteractiveSignInDateTime -gt $lastSignInDateTime) {
+            $LastSignInActivity = $lastNonInteractiveSignInDateTime
+        } else {
+            $LastSignInActivity = $lastSignInDateTime
+        }
+
+        # Filter and format stale accounts.
+        if ($null -eq $LastSignInActivity -or (Get-Date -Date $LastSignInActivity) -lt ((Get-Date -Date (Get-Date -Format 'yyyy-MM-dd')).AddDays(-$LastSeenDaysAgo))) {
             $CustomObject = New-Object -TypeName psobject
 
-            $CustomObject | Add-Member -MemberType NoteProperty -Name "lastSignInDateTime" -Value $User.signInActivity.lastSignInDateTime
-            $CustomObject | Add-Member -MemberType NoteProperty -Name "lastNonInteractiveSignInDateTime" -Value $User.signInActivity.lastNonInteractiveSignInDateTime
+            $CustomObject | Add-Member -MemberType NoteProperty -Name "LastSignInActivity" -Value $LastSignInActivity
 
             $CustomObject | Add-Member -MemberType NoteProperty -Name "DisplayName" -Value $User.DisplayName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "userPrincipalName" -Value $User.userPrincipalName
@@ -2134,7 +2231,7 @@ function New-DCStaleAccountReport {
         }
     }
 
-    $Result2 = $Result2 | Sort-Object lastSignInDateTime -Descending
+    $Result2 = $Result2 | Sort-Object LastSignInActivity
 
     Write-Verbose -Verbose -Message "Found $($Result2.Count) stale user accounts in Azure AD."
 
