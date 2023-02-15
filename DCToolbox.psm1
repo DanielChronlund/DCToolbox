@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '1.0.33'
+    $DCToolboxVersion = '1.0.34'
 
 
     $HelpText = @"
@@ -850,10 +850,46 @@ foreach ($AzureADDirectoryRoleMember in ($AzureADDirectoryRoleMembers | Sort-Obj
                 Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
                 Write-Host -ForegroundColor "Yellow" ""
             }
+            8 {
+                $Snippet = @'
+# This script uses an Azure AD app registration to download all files from all M365 groups (Teams) document libraries in a tenant.
+
+# One of the following Graph API app permissions is required:
+# - Files.Read.All
+# - Files.ReadWrite.All
+# - Sites.Read.All
+# - Sites.ReadWrite.All
+
+# Simulate data exfiltration.
+Invoke-DCM365DataExfiltration -ClientID '' -ClientSecret '' -TenantName 'COMPANY.onmicrosoft.com' -WhatIf
+
+# Perform data exfiltration.
+Invoke-DCM365DataExfiltration -ClientID '' -ClientSecret '' -TenantName 'COMPANY.onmicrosoft.com'
+
+
+# This script uses an Azure AD app registration to wipe all files from all M365 groups (Teams) document libraries in a tenant.
+
+# One of the following Graph API app permissions is required:
+# - Files.ReadWrite.All
+# - Sites.ReadWrite.All
+
+# Simulate data deletion.
+Invoke-DCM365DataWiper -ClientID '' -ClientSecret '' -TenantName 'COMPANY.onmicrosoft.com' -WhatIf
+
+# Perform data deletion.
+Invoke-DCM365DataWiper -ClientID '' -ClientSecret '' -TenantName 'COMPANY.onmicrosoft.com'
+
+'@
+
+                Set-Clipboard $Snippet
+
+                Write-Host -ForegroundColor "Yellow" ""
+                Write-Host -ForegroundColor "Yellow" "Example copied to clipboard!"
+                Write-Host -ForegroundColor "Yellow" ""
+            }
             100 {
                 $Snippet = @'
-X
-
+# 
 '@
 
                 Set-Clipboard $Snippet
@@ -872,166 +908,11 @@ X
 	
 
     # Create example menu.
-    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Azure AD Privileged Identity Management (PIM) role", "Manage stale Azure AD accounts", "Azure MFA SMS and voice call methods cleanup script", "General PowerShell script template", "Azure AD Security Breach Kick-Out Process"
+    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Azure AD Privileged Identity Management (PIM) role", "Manage stale Azure AD accounts", "Azure MFA SMS and voice call methods cleanup script", "General PowerShell script template", "Azure AD Security Breach Kick-Out Process", "Microsoft 365 Data Exfiltration / Wiper Attack"
     
 
     # Handle menu choice.
     HandleMenuChoice -MenuChoice $Choice
-}
-
-
-
-function New-DCM365AssetInventoryReport {
-    <#
-        .SYNOPSIS
-            Gather basic asset information from a Microsoft 365 tenant and crates an Excel report.
-
-        .DESCRIPTION
-            This CMDlet uses Microsoft Graph to gather asset information (users, devices, applications, etc) The purpose of this tool is to quickly inventory tenant assets and document it in Excel.
-            
-        .INPUTS
-            None
-
-        .OUTPUTS
-            An Excel report.
-
-        .NOTES
-            Author:   Daniel Chronlund
-            GitHub:   https://github.com/DanielChronlund/DCToolbox
-            Blog:     https://danielchronlund.com/
-        
-        .EXAMPLE
-            New-DCM365AssetInventoryReport
-    #>
-	
-
-    # Check if the Azure AD Preview module is installed.
-    if (Get-Module -ListAvailable -Name "Microsoft.Graph") {
-        # Do nothing.
-    } 
-    else {
-        Write-Error -Exception "The Microsoft.Graph PowerShell module is not installed. Please, run 'Install-Module -Name Microsoft.Graph -Force' as an admin and try again." -ErrorAction Stop
-    }
-
-
-    # Check if the Excel module is installed.
-    if (Get-Module -ListAvailable -Name "ImportExcel") {
-        # Do nothing.
-    }
-    else {
-        Write-Error -Exception "The Excel PowerShell module is not installed. Please, run 'Install-Module ImportExcel -Force' as an admin and try again." -ErrorAction Stop
-    }
-
-
-    # Disconnect any previous connection to Microsoft Graph.
-    try {
-        Disconnect-MgGraph
-    } catch {
-        # Do nothing.
-    }
-
-
-    # Connect to Microsoft Graph.
-    Connect-MgGraph -ForceRefresh -Scopes 'Directory.Read.All'
-
-	
-    # Function to add a report row.
-    function Add-ReportRow {
-        param (
-            $CreatedDateTime,
-            $Type,
-            $ObjectId,
-            $Name,
-            $Details
-        )
-	
-        $CustomObject = New-Object -TypeName psobject
-	
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "CreatedDateTime" -Value $CreatedDateTime
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "Type" -Value $Type
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "ObjectId" -Value $ObjectId
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value $Name
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "Details" -Value $Details
-	
-        $CustomObject
-    }
-	
-	
-    # Gather tenant data.
-    Write-Verbose -Verbose -Message "Gathering tenant data..."
-
-    $RoleAssignments = Get-MgRoleManagementDirectoryRoleAssignment -All:$true
-
-    $Users = Get-MgUser -All:$true -Property CreatedDateTime, Id, UserPrincipalName, DisplayName, MobilePhone, UserType, JobTitle, CompanyName, Department, City, Country, AccountEnabled, OnPremisesSyncEnabled, AssignedLicenses
-
-    $EnterpriseApps = Get-MgApplication -All:$true -Property CreatedDateTime, DisplayName, AppId, Description, Notes, Owners
-
-    $Devices = Get-MgDevice -All:$true -Property DeviceId, DisplayName, AccountEnabled, ProfileType, TrustType, IsManaged, IsCompliant, RegisteredOwners, RegisteredUsers, ApproximateLastSignInDateTime, OnPremisesSyncEnabled, DeletedDateTime, OperatingSystem, OperatingSystemVersion, AdditionalProperties
-	
-	
-    $ScriptBlock = {
-        foreach ($RoleAssignment in $RoleAssignments) {
-            try {
-                $User = Get-MgUser -UserId $RoleAssignment.PrincipalId -ErrorAction SilentlyContinue
-            } catch {
-                # Do nothing.
-            }
-        
-            if ($User) {
-                Add-ReportRow -CreatedDateTime "" -Type 'DirectoryRoleAssignment' -ObjectId $RoleAssignment.Id -Name (Get-MgRoleManagementDirectoryRoleDefinition -Filter "Id eq '$($RoleAssignment.RoleDefinitionId)'").DisplayName -Details "UserPrincipalName: $($User.UserPrincipalName)"
-            }
-        }
-
-
-        foreach ($User in ($Users | where UserType -eq 'Member' | Sort-Object UserPrincipalName)) {
-            $LicenseEnabled = if ($User.AssignedLicenses) {
-                $true
-            } else {
-                $false
-            }
-
-            $OnPremisesSyncEnabled = if ($User.OnPremisesSyncEnabled) {
-                $true
-            } else {
-                $false
-            }
-
-            Add-ReportRow -CreatedDateTime $User.CreatedDateTime -Type 'UserAccount' -ObjectId $User.Id -Name $User.UserPrincipalName -Details "DisplayName: $($User.DisplayName); MobilePhone: $($User.MobilePhone); UserType: $($User.UserType); JobTitle: $($User.JobTitle); CompanyName: $($User.CompanyName); Department: $($User.Department); City: $($User.City); Country: $($User.Country); AccountEnabled: $($User.AccountEnabled); OnPremisesSyncEnabled: $OnPremisesSyncEnabled; AssignedLicenses: $LicenseEnabled"
-        }
-
-        foreach ($User in ($Users | where UserType -eq 'Guest' | Sort-Object UserPrincipalName)) {
-            Add-ReportRow -CreatedDateTime $User.CreatedDateTime -Type 'GuestAccount' -ObjectId $User.Id -Name $User.UserPrincipalName -Details "DisplayName: $($User.DisplayName); MobilePhone: $($User.MobilePhone); UserType: $($User.UserType); JobTitle: $($User.JobTitle); CompanyName: $($User.CompanyName); Department: $($User.Department); City: $($User.City); Country: $($User.Country); AccountEnabled: $($User.AccountEnabled)"
-        }
-
-        foreach ($App in $EnterpriseApps) {
-            Add-ReportRow -CreatedDateTime $App.CreatedDateTime -Type 'EnterpriseApp' -ObjectId $App.AppId -Name $App.DisplayName -Details "Description: $($App.Description); Notes: $($App.Notes); Owners: $($App.Owners);"
-        }
-
-        foreach ($Device in ($Devices | Sort-Object DisplayName)) {
-            $OnPremisesSyncEnabled = if ($Device.OnPremisesSyncEnabled) {
-                $true
-            } else {
-                $false
-            }
-
-            Add-ReportRow -CreatedDateTime $Device.AdditionalProperties.createdDateTime -Type 'Device' -ObjectId $Device.DeviceId -Name $Device.DisplayName -Details "AccountEnabled: $($Device.AccountEnabled); ProfileType: $($Device.ProfileType); TrustType: $($Device.TrustType); IsManaged: $($Device.IsManaged); IsCompliant: $($Device.IsCompliant); RegisteredOwners: $($Device.RegisteredOwners); RegisteredUsers: $($Device.RegisteredUsers); ApproximateLastSignInDateTime: $($Device.ApproximateLastSignInDateTime); OnPremisesSyncEnabled: $OnPremisesSyncEnabled; DeletedDateTime: $($Device.DeletedDateTime); OperatingSystem: $($Device.OperatingSystem); OperatingSystemVersion: $($Device.OperatingSystemVersion);"
-        }
-    }
-	
-	
-    $Result = $Result | Sort-Object CreatedDateTime
-
-    $Result = Invoke-Command $ScriptBlock
-
-
-    # Export the result to Excel.
-    Write-Verbose -Verbose -Message "Exporting report to Excel..."
-    $Path = "$((Get-Location).Path)\M365 Asset Inventory Report $(Get-Date -Format 'yyyy-MM-dd').xlsx"
-    $Result | Export-Excel -Path $Path -WorksheetName "M365 Asset Inventory" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -NoNumberConversion * -Show
-
-
-    Write-Verbose -Verbose -Message "Saved $Path"
-    Write-Verbose -Verbose -Message "Done!"
 }
 
 
@@ -1857,74 +1738,6 @@ function Test-DCAzureAdCommonAdmins {
             Test-DCAzureAdUserExistence -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
         }
     }   
-}
-
-
-
-function Test-DCLegacyAuthentication {
-    <#
-        .SYNOPSIS
-            Test if legacy authentication is allowed in Office 365 for a particular user.
-        
-        .DESCRIPTION
-            This CMDlet lets you test if legacy authentication is allowed in Office 365. It uses an older reporting endpoints to test the authentication.
-
-            Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Azure AD configuration.
-        
-        .PARAMETER Credential
-            The Azure AD credentials to test.
-        
-        .EXAMPLE
-            Test-DCLegacyAuthentication
-
-        .EXAMPLE
-            Test-DCLegacyAuthentication -Credential $Cred
-
-        .EXAMPLE
-            if (Test-DCLegacyAuthentication -Credential $Cred) { 'Legacy authentication is allowed :(' }
-        
-        .INPUTS
-            PSCredential
-
-        .OUTPUTS
-            None
-        
-        .NOTES
-            Author:   Daniel Chronlund
-            GitHub:   https://github.com/DanielChronlund/DCToolbox
-            Blog:     https://danielchronlund.com/
-	#>
-
-
-    param (
-        [parameter(Mandatory = $true)]
-        [PSCredential]$Credential
-    )
-
-
-    try {
-        Write-Verbose -Verbose -Message "Testing legacy authentication for $($Credential.UserName)..."
-        Invoke-WebRequest -Uri "https://reports.office365.com/ecp/reportingwebservice/reporting.svc" -Credential $Credential | Out-Null
-
-
-        Write-Host -ForegroundColor 'Red' "ALLOWED: Legacy authentication is allowed for $($Credential.UserName) in Office 365! This is very dangerous!"
-
-
-        # Return true if legacy authentication is allowed..
-        $true
-    }
-    catch {
-        if ($_.ErrorDetails.Message -like "*401*" -or $_.ErrorDetails.Message -like "*403*") {
-            Write-Host -ForegroundColor 'Green' "AUTHENTICATION FAILED: Legacy authentication failed for $($Credential.UserName) in Office 365!"
-        }
-        else {
-            Write-Error $_.ErrorDetails.Message
-        }
-
-
-        # Return false if legacy authentication is blocked..
-        $false
-    }
 }
 
 
@@ -3885,205 +3698,4 @@ function New-DCConditionalAccessAssignmentReport {
 
 
     # ----- [End] -----
-}
-
-
-
-function Get-DCCAPLicenseReport {
-    <#
-        .SYNOPSIS
-                Create an Excel report with Azure AD users unlicensed for Conditional Access.
-
-            .DESCRIPTION
-                Create an Excel report with Azure AD users unlicensed for Conditional Access but still signed in during the last 30 days. This is important to know if you for example target Conditional Access policys to 'All users'.
-
-                The script requires you to have permissions to list all users in Azure AD, and to read the sign-ins log, User Admin or Security Reader for example.
-
-                The following is a list of SKUs containing Conditional Access that this script will check for. The script does not check School (A) licenses of government cloud licenses.
-
-                Microsoft cloud SKUs containing Conditional Access:
-                https://docs.microsoft.com/en-us/azure/active-directory/enterprise-users/licensing-service-plan-reference
-
-                078d2b04-f1bd-4111-bbd4-b4b1b354cef4
-                AZURE ACTIVE DIRECTORY PREMIUM P1
-
-                84a661c4-e949-4bd2-a560-ed7766fcaf2b
-                AAD_PREMIUM_P2
-
-                efccb6f7-5641-4e0e-bd10-b4976e1bf68e
-                ENTERPRISE MOBILITY + SECURITY E3
-
-                b05e124f-c7cc-45a0-a6aa-8cf78c946968
-                ENTERPRISE MOBILITY + SECURITY E5
-
-                f245ecc8-75af-4f8e-b61f-27d8114de5f3
-                MICROSOFT 365 BUSINESS STANDARD
-
-                cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46
-                MICROSOFT 365 BUSINESS PREMIUM
-
-                05e9a617-0261-4cee-bb44-138d3ef5d965
-                MICROSOFT 365 E3
-
-                06ebc4ee-1bb5-47dd-8120-11324bc54e06
-                Microsoft 365 E5
-
-                26124093-3d78-432b-b5dc-48bf992543d5
-                Microsoft 365 E5 Security
-
-                44ac31e7-2999-4304-ad94-c948886741d4
-                Microsoft 365 E5 Security for EMS E5
-
-                44575883-256e-4a79-9da4-ebe9acabe2b2
-                Microsoft 365 F1
-
-                50f60901-3181-4b75-8a2c-4c8e4c1d5a72
-                Microsoft 365 F1
-
-                66b55226-6b4f-492c-910c-a3b7a3c9d993
-                Microsoft 365 F3
-
-                2347355b-4e81-41a4-9c22-55057a399791
-                Microsoft 365 Security and Compliance for Firstline Workers
-
-            .INPUTS
-                None
-
-            .OUTPUTS
-                Excel report with all unlicensed Conditional Access users who signed in during the last 30 days.
-
-            .NOTES
-                Author:   Daniel Chronlund
-                GitHub:   https://github.com/DanielChronlund/DCToolbox
-                Blog:     https://danielchronlund.com/
-            
-            .EXAMPLE
-                Get-DCCAPLicenseReport
-    #>
-
-
-    # Function to check if there already is an active Azure AD session.
-    function AzureAdConnected {
-        try {
-            Get-AzureADTenantDetail | Out-Null
-            $true
-        } 
-        catch {
-            $false
-        }
-    }
-
-
-    # List of SKUs with Conditional Access.
-    $ConditionalAccessSKUs = '078d2b04-f1bd-4111-bbd4-b4b1b354cef4',
-    '84a661c4-e949-4bd2-a560-ed7766fcaf2b',
-    'efccb6f7-5641-4e0e-bd10-b4976e1bf68e',
-    'b05e124f-c7cc-45a0-a6aa-8cf78c946968',
-    'f245ecc8-75af-4f8e-b61f-27d8114de5f3',
-    'cbdc14ab-d96c-4c30-b9f4-6ada7cdc1d46',
-    '05e9a617-0261-4cee-bb44-138d3ef5d965',
-    '06ebc4ee-1bb5-47dd-8120-11324bc54e06',
-    '26124093-3d78-432b-b5dc-48bf992543d5',
-    '44ac31e7-2999-4304-ad94-c948886741d4',
-    '44575883-256e-4a79-9da4-ebe9acabe2b2',
-    '50f60901-3181-4b75-8a2c-4c8e4c1d5a72',
-    '66b55226-6b4f-492c-910c-a3b7a3c9d993',
-    '2347355b-4e81-41a4-9c22-55057a399791'
-
-
-    # Check if the Excel module is installed.
-    if (Get-Module -ListAvailable -Name "ImportExcel") {
-        # Do nothing.
-    }
-    else {
-        Write-Error -Exception "The Excel PowerShell module is not installed. Please, run 'Install-Module ImportExcel -Force' as an admin and try again." -ErrorAction Stop
-    }
-
-
-    # Connect to Azure AD.
-    if (!(AzureAdConnected)) {
-        Write-Verbose -Verbose -Message "Connecting to Azure AD..."
-        Connect-AzureAD
-    }
-
-
-    # Get all member users from Azure AD.
-    Write-Verbose -Verbose -Message "Fetching all member users in Azure AD..."
-    $AllUsers = Get-AzureADUser -All:$true -Filter "UserType eq 'Member'"
-    Write-Verbose -Verbose -Message "Found $($AllUsers.Count) users!"
-
-
-    # Find out which users that are not licensed for Conditional Access.
-    Write-Verbose -Verbose -Message "Looking fo unlicensed users..."
-    $ProgressCounter = 0
-    $UnlicensedUsers = foreach ($User in $AllUsers) {
-        # Show progress bar.
-        $ProgressCounter += 1
-        [int]$PercentComplete = ($ProgressCounter / $AllUsers.Count) * 100
-        Write-Progress -PercentComplete $PercentComplete -Activity "Processing user $ProgressCounter of $($AllUsers.Count)" -Status "$PercentComplete% Complete"
-
-        if ($User.AssignedLicenses.SkuId) {
-            $HasLicense = $false
-
-            foreach ($SkuId in $User.AssignedLicenses.SkuId) {
-                if ($ConditionalAccessSKUs.Contains($SkuId)) {
-                    $HasLicense = $true
-                }
-            }
-
-            if ($HasLicense -eq $false) {
-                $User
-            }
-        }
-        else {
-            $User
-        }
-    }
-
-    Write-Verbose -Verbose -Message "Found $($UnlicensedUsers.Count) users!"
-
-
-    # Check which unlicensed users that have signed in during the last 30 days.
-    Write-Verbose -Verbose -Message "Searching Azure AD sign-ins logs..."
-    $ProgressCounter = 0
-    $Result = foreach ($User in $UnlicensedUsers) {
-        # Show progress bar.
-        $ProgressCounter += 1
-        [int]$PercentComplete = ($ProgressCounter / $UnlicensedUsers.Count) * 100
-        Write-Progress -PercentComplete $PercentComplete -Activity "Processing user $ProgressCounter of $($UnlicensedUsers.Count)" -Status "$PercentComplete% Complete"
-
-        $LogDetails = Get-AzureADAuditSignInLogs -Filter "UserPrincipalName eq '$($User.UserPrincipalName)' and createdDateTime gt $(Get-Date -Date (Get-Date).AddDays(-30) -Format 'yyyy-MM-dd')" -Top 1 | Select-Object CreatedDateTime, UserPrincipalName, IsInteractive, AppDisplayName, IpAddress, @{Name = 'DeviceOS'; Expression = { $_.DeviceDetail.OperatingSystem } }
-
-        # Avoid throttling by delaying requests (common issue with Get-AzureADAuditSignInLogs).
-        Start-Sleep -Milliseconds 500
-
-        $Time = ''
-        if ($LogDetails.CreatedDateTime) {
-            $Time = $(Get-Date -Date $LogDetails.CreatedDateTime)
-        }
-        else {
-            $Time = 'No sign-in for last 30 days'
-        }
-
-        $CustomObject = New-Object -TypeName psobject
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "LastSignIn" -Value $Time
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $User.UserPrincipalName
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "AppDisplayName" -Value $LogDetails.AppDisplayName
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "IpAddress" -Value "'$($LogDetails.IpAddress)'"
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "DeviceOS" -Value $LogDetails.DeviceOS
-
-        $CustomObject
-    }
-
-    $Result = $Result | Sort-Object LastSignIn
-
-
-    # Export the result to Excel.
-    Write-Verbose -Verbose -Message "Exporting report to Excel..."
-    $Path = "$((Get-Location).Path)\Conditional Access Unlicensed User Report $(Get-Date -Format 'yyyy-MM-dd').xlsx"
-    $Result | Export-Excel -Path $Path -WorksheetName "CA Assignments" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -Show
-
-
-    Write-Verbose -Verbose -Message "Saved $Path"
-    Write-Verbose -Verbose -Message "Done!"
 }
