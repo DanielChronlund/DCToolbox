@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '1.0.39'
+    $DCToolboxVersion = '2.0.0'
 
 
     $HelpText = @"
@@ -17,7 +17,7 @@ A PowerShell toolbox for Microsoft 365 security fans.
 Author: Daniel Chronlund
 Version: $DCToolboxVersion
 
-This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
+This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Entra ID management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
 The home of this module: https://github.com/DanielChronlund/DCToolbox
 
@@ -98,12 +98,7 @@ function Copy-DCExample {
 # *** Connect Examples ***
 
 # Connect to Microsoft Graph with delegated permissions.
-$Parameters = @{
-    ClientID = ''
-    ClientSecret = ''
-}
-
-$AccessToken = Connect-DCMsGraphAsDelegated @Parameters
+$AccessToken = Invoke-DCEntraIDDeviceAuthFlow -ReturnAccessTokenInsteadOfRefreshToken
 
 
 # Connect to Microsoft Graph with application permissions.
@@ -202,7 +197,7 @@ help Invoke-DCMsGraphQuery -Full
 # Manage Conditional Access as code.
 
 <#
-You first need to register a new application in your Azure AD according to this article:
+You first need to register a new application in your Entra ID according to this article:
 https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
 
 The following Microsoft Graph API permissions are required for this to work:
@@ -212,7 +207,7 @@ The following Microsoft Graph API permissions are required for this to work:
     Agreement.Read.All
     Application.Read.All
 
-Also, the user running this (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
+Also, the user running this (the one who signs in when the authentication pops up) must have the appropriate permissions in Entra ID (Global Admin, Security Admin, Conditional Access Admin, etc).
 #>
 
 
@@ -275,33 +270,33 @@ help New-DCConditionalAccessAssignmentReport -Full
                 $Snippet = @'
 # Install required modules (if you are local admin) (only needed first time).
 Install-Module -Name DCToolbox -Force
-Install-Module -Name AzureADPreview -Force
+Install-Module -Name EntraIDPreview -Force
 Install-Package msal.ps -Force
 
 # Install required modules as current user (if you're not local admin) (only needed first time).
 Install-Module -Name DCToolbox -Scope CurrentUser -Force
-Install-Module -Name AzureADPreview -Scope CurrentUser -Force
+Install-Module -Name EntraIDPreview -Scope CurrentUser -Force
 Install-Package msal.ps -Scope CurrentUser -Force
 
 
-# If you want to, you can run Connect-AzureAD before running Enable-DCAzureADPIMRole, but you don't have to.
+# If you want to, you can run Connect-EntraID before running Enable-DCEntraIDPIMRole, but you don't have to.
 
 # If you want to use another account than your current account using SSO, first connect with this.
-Connect-AzureAD -AccountId 'user@example.com'
+Connect-EntraID -AccountId 'user@example.com'
 
-# Enable one of your Azure AD PIM roles.
-Enable-DCAzureADPIMRole
+# Enable one of your Entra ID PIM roles.
+Enable-DCEntraIDPIMRole
 
-# Enable multiple Azure AD PIM roles.
-Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
+# Enable multiple Entra ID PIM roles.
+Enable-DCEntraIDPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
 
-# Fully automate Azure AD PIM role activation.
-Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaximumTimeAllowed -Reason 'Performing some Exchange security coniguration according to change #12345.'
+# Fully automate Entra ID PIM role activation.
+Enable-DCEntraIDPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaximumTimeAllowed -Reason 'Performing some Exchange security coniguration according to change #12345.'
 
 <#
     Example output:
 
-    VERBOSE: Connecting to Azure AD...
+    VERBOSE: Connecting to Entra ID...
 
     *** Activate PIM Role ***
 
@@ -318,13 +313,13 @@ Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Rea
 #>
 
 
-# Learn more about Enable-DCAzureADPIMRole.
-help Enable-DCAzureADPIMRole -Full
+# Learn more about Enable-DCEntraIDPIMRole.
+help Enable-DCEntraIDPIMRole -Full
 
 # Privileged Identity Management | My roles:
 # https://portal.azure.com/#blade/Microsoft_Azure_PIMCommon/ActivationMenuBlade/aadmigratedroles
 
-# Privileged Identity Management | Azure AD roles | Overview:
+# Privileged Identity Management | Entra ID roles | Overview:
 # https://portal.azure.com/#blade/Microsoft_Azure_PIMCommon/ResourceMenuBlade/aadoverview/resourceId//resourceType/tenant/provider/aadroles
 
 '@
@@ -341,7 +336,7 @@ help Enable-DCAzureADPIMRole -Full
 Get-Help New-DCStaleAccountReport -Full
 
 
-# Export stale Azure AD account report to Excel.
+# Export stale Entra ID account report to Excel.
 $Parameters = @{
     ClientID = ''
     ClientSecret = ''
@@ -351,7 +346,7 @@ $Parameters = @{
 New-DCStaleAccountReport @Parameters
 
 
-# Export stale GUEST Azure AD account report to Excel.
+# Export stale GUEST Entra ID account report to Excel.
 $Parameters = @{
     ClientID = ''
     ClientSecret = ''
@@ -362,7 +357,7 @@ $Parameters = @{
 New-DCStaleAccountReport @Parameters
 
 
-# Export stale MEMBER Azure AD account report to Excel.
+# Export stale MEMBER Entra ID account report to Excel.
 $Parameters = @{
     ClientID = ''
     ClientSecret = ''
@@ -373,7 +368,7 @@ $Parameters = @{
 New-DCStaleAccountReport @Parameters
 
 
-# Export stale GUEST Azure AD account report with group/team membership to Excel.
+# Export stale GUEST Entra ID account report with group/team membership to Excel.
 $Parameters = @{
     ClientID = ''
     ClientSecret = ''
@@ -394,7 +389,7 @@ New-DCStaleAccountReport @Parameters
             }
             5 {
                 $Snippet = @'
-### Clean up phone authentication methods for all Azure AD users ###
+### Clean up phone authentication methods for all Entra ID users ###
 
 <#
     Set the registered applications ClientID and ClientSecret further down. This script requires the following Microsoft Graph permissions:
@@ -405,7 +400,7 @@ New-DCStaleAccountReport @Parameters
     It also requires the DCToolbox PowerShell module:
     Install-Module -Name DCToolbox -Force
 
-    Note that this script cannot delete a users phone method if it is set as the default authentication method. Microsoft Graph cannot, as of 7/10 2021, manage the default authentication method for users in Azure AD. Hopefully the users method of choice was changed when he/she switched to the Microsoft Authenticator app or another MFA/passwordless authentication method. If not, ask them to change the default method before running the script.
+    Note that this script cannot delete a users phone method if it is set as the default authentication method. Microsoft Graph cannot, as of 7/10 2021, manage the default authentication method for users in Entra ID. Hopefully the users method of choice was changed when he/she switched to the Microsoft Authenticator app or another MFA/passwordless authentication method. If not, ask them to change the default method before running the script.
 
     Use the following report to understand how many users are registered for phone authentication (can lag up to 48 hours): https://portal.azure.com/#blade/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/AuthMethodsActivity
 #>
@@ -421,7 +416,7 @@ $Parameters = @{
 $AccessToken = Connect-DCMsGraphAsDelegated @Parameters
 
 
-# Fetch all users with phone authentication enabled from the Azure AD authentication usage report (we're using this usage report to save time and resources when querying Graph, but their might be a 24 hour delay in the report data).
+# Fetch all users with phone authentication enabled from the Entra ID authentication usage report (we're using this usage report to save time and resources when querying Graph, but their might be a 24 hour delay in the report data).
 Write-Verbose -Verbose -Message 'Fetching all users with any phone authentication methods registered...'
 $Parameters = @{
     AccessToken = $AccessToken
@@ -660,7 +655,7 @@ function1 -Parameter1 'Test'
             }
             7 {
                 $Snippet = @'
-# README: This script is an example of what you might want to/need to do if your Azure AD has been breached. This script was created in the spirit of the zero trust assume breach methodology. The idea is that if you detect that attackers are already on the inside, then you must try to kick them out. This requires multiple steps and you also must handle other resources like your on-prem AD. However, this script example helps you in the right direction when it comes to Azure AD admin roles.
+# README: This script is an example of what you might want to/need to do if your Entra ID has been breached. This script was created in the spirit of the zero trust assume breach methodology. The idea is that if you detect that attackers are already on the inside, then you must try to kick them out. This requires multiple steps and you also must handle other resources like your on-prem AD. However, this script example helps you in the right direction when it comes to Entra ID admin roles.
 
 # More info on my blog: https://danielchronlund.com/2021/03/29/my-azure-ad-has-been-breached-what-now/
 
@@ -668,13 +663,13 @@ break
 
 
 
-# *** Connect to Azure AD ***
-Import-Module AzureADPreview
-Connect-AzureAD
+# *** Connect to Entra ID ***
+Import-Module EntraIDPreview
+Connect-EntraID
 
 
 
-# *** Interesting Azure AD roles to inspect ***
+# *** Interesting Entra ID roles to inspect ***
 $InterestingDirectoryRoles = 'Global Administrator',
 'Global Reader',
 'Privileged Role Administrator',
@@ -684,46 +679,46 @@ $InterestingDirectoryRoles = 'Global Administrator',
 
 
 
-# *** Inspect current Azure AD admins (if you use Azure AD PIM) ***
+# *** Inspect current Entra ID admins (if you use Entra ID PIM) ***
 
 # Fetch tenant ID.
-$TenantID = (Get-AzureADTenantDetail).ObjectId
+$TenantID = (Get-EntraIDTenantDetail).ObjectId
 
-# Fetch all Azure AD role definitions.
-$AzureADRoleDefinitions = Get-AzureADMSPrivilegedRoleDefinition -ProviderId "aadRoles" -ResourceId $TenantID | Where-Object { $_.DisplayName -in $InterestingDirectoryRoles }
+# Fetch all Entra ID role definitions.
+$EntraIDRoleDefinitions = Get-EntraIDMSPrivilegedRoleDefinition -ProviderId "aadRoles" -ResourceId $TenantID | Where-Object { $_.DisplayName -in $InterestingDirectoryRoles }
 
-# Fetch all Azure AD PIM role assignments.
-$AzureADDirectoryRoleAssignments = Get-AzureADMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $TenantID | Where-Object { $_.RoleDefinitionId -in $AzureADRoleDefinitions.Id }
+# Fetch all Entra ID PIM role assignments.
+$EntraIDDirectoryRoleAssignments = Get-EntraIDMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $TenantID | Where-Object { $_.RoleDefinitionId -in $EntraIDRoleDefinitions.Id }
 
-# Fetch Azure AD role members for each role and format as custom object.
-$AzureADDirectoryRoleMembers = foreach ($AzureADDirectoryRoleAssignment in $AzureADDirectoryRoleAssignments) {
-    $UserAccountDetails = Get-AzureAdUser -ObjectId $AzureADDirectoryRoleAssignment.SubjectId
+# Fetch Entra ID role members for each role and format as custom object.
+$EntraIDDirectoryRoleMembers = foreach ($EntraIDDirectoryRoleAssignment in $EntraIDDirectoryRoleAssignments) {
+    $UserAccountDetails = Get-EntraIDUser -ObjectId $EntraIDDirectoryRoleAssignment.SubjectId
 
-    $LastLogon = (Get-AzureAdAuditSigninLogs -top 1 -filter "UserId eq '$($AzureADDirectoryRoleAssignment.SubjectId)'" | Select-Object CreatedDateTime).CreatedDateTime
+    $LastLogon = (Get-EntraIDAuditSigninLogs -top 1 -filter "UserId eq '$($EntraIDDirectoryRoleAssignment.SubjectId)'" | Select-Object CreatedDateTime).CreatedDateTime
 
     if ($LastLogon) {
         $LastLogon = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date -Date $LastLogon), (Get-TimeZone).Id)
     }
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "AzureADDirectoryRole" -Value ($AzureADRoleDefinitions | Where-Object { $_.Id -eq $AzureADDirectoryRoleAssignment.RoleDefinitionId }).DisplayName
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "EntraIDDirectoryRole" -Value ($EntraIDRoleDefinitions | Where-Object { $_.Id -eq $EntraIDDirectoryRoleAssignment.RoleDefinitionId }).DisplayName
     $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $UserAccountDetails.ObjectID
     $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $UserAccountDetails.DisplayName
     $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $UserAccountDetails.UserPrincipalName
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "AssignmentState" -Value $AzureADDirectoryRoleAssignment.AssignmentState
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "AssignmentState" -Value $EntraIDDirectoryRoleAssignment.AssignmentState
     $CustomObject | Add-Member -MemberType NoteProperty -Name "AccountCreated" -Value $UserAccountDetails.ExtensionProperty.createdDateTime
     $CustomObject | Add-Member -MemberType NoteProperty -Name "LastLogon" -Value $LastLogon
     $CustomObject
 }
 
-# List all Azure AD role members (newest first).
-$AzureADDirectoryRoleMembers | Sort-Object AccountCreated -Descending | Format-Table
+# List all Entra ID role members (newest first).
+$EntraIDDirectoryRoleMembers | Sort-Object AccountCreated -Descending | Format-Table
 
 
 
-# *** Inspect current Azure AD admins (only if you do NOT use Azure AD PIM) ***
+# *** Inspect current Entra ID admins (only if you do NOT use Entra ID PIM) ***
 
-# Interesting Azure AD roles to inspect.
+# Interesting Entra ID roles to inspect.
 $InterestingDirectoryRoles = 'Global Administrator',
 'Global Reader',
 'Privileged Role Administrator',
@@ -731,22 +726,22 @@ $InterestingDirectoryRoles = 'Global Administrator',
 'Application Administrator',
 'Compliance Administrator'
 
-# Fetch Azure AD role details.
-$AzureADDirectoryRoles = Get-AzureADDirectoryRole | Where-Object { $_.DisplayName -in $InterestingDirectoryRoles }
+# Fetch Entra ID role details.
+$EntraIDDirectoryRoles = Get-EntraIDDirectoryRole | Where-Object { $_.DisplayName -in $InterestingDirectoryRoles }
 
-# Fetch Azure AD role members for each role and format as custom object.
-$AzureADDirectoryRoleMembers = foreach ($AzureADDirectoryRole in $AzureADDirectoryRoles) {
-    $RoleAssignments = Get-AzureADDirectoryRoleMember -ObjectId $AzureADDirectoryRole.ObjectId
+# Fetch Entra ID role members for each role and format as custom object.
+$EntraIDDirectoryRoleMembers = foreach ($EntraIDDirectoryRole in $EntraIDDirectoryRoles) {
+    $RoleAssignments = Get-EntraIDDirectoryRoleMember -ObjectId $EntraIDDirectoryRole.ObjectId
 
     foreach ($RoleAssignment in $RoleAssignments) {
-        $LastLogon = (Get-AzureAdAuditSigninLogs -top 1 -filter "UserId eq '$($RoleAssignment.ObjectId)'" | Select-Object CreatedDateTime).CreatedDateTime
+        $LastLogon = (Get-EntraIDAuditSigninLogs -top 1 -filter "UserId eq '$($RoleAssignment.ObjectId)'" | Select-Object CreatedDateTime).CreatedDateTime
 
         if ($LastLogon) {
             $LastLogon = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date -Date $LastLogon), (Get-TimeZone).Id)
         }
 
         $CustomObject = New-Object -TypeName psobject
-        $CustomObject | Add-Member -MemberType NoteProperty -Name "AzureADDirectoryRole" -Value $AzureADDirectoryRole.DisplayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name "EntraIDDirectoryRole" -Value $EntraIDDirectoryRole.DisplayName
         $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $RoleAssignment.ObjectID
         $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $RoleAssignment.DisplayName
         $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $RoleAssignment.UserPrincipalName
@@ -756,21 +751,21 @@ $AzureADDirectoryRoleMembers = foreach ($AzureADDirectoryRole in $AzureADDirecto
     }
 }
 
-# List all Azure AD role members (newest first).
-$AzureADDirectoryRoleMembers | Sort-Object AccountCreated -Descending | Format-Table
+# List all Entra ID role members (newest first).
+$EntraIDDirectoryRoleMembers | Sort-Object AccountCreated -Descending | Format-Table
 
 
 
 # *** Check if admin accounts are synced from on-prem (bad security) ***
 
 # Loop through the admins from previous output and fetch sync status.
-$SyncedAdmins = foreach ($AzureADDirectoryRoleMember in $AzureADDirectoryRoleMembers) {
-    $IsSynced = (Get-AzureADUser -ObjectId $AzureADDirectoryRoleMember.UserID | Where-Object {$_.DirSyncEnabled -eq $true}).DirSyncEnabled
+$SyncedAdmins = foreach ($EntraIDDirectoryRoleMember in $EntraIDDirectoryRoleMembers) {
+    $IsSynced = (Get-EntraIDUser -ObjectId $EntraIDDirectoryRoleMember.UserID | Where-Object {$_.DirSyncEnabled -eq $true}).DirSyncEnabled
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $AzureADDirectoryRoleMember.UserID
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $AzureADDirectoryRoleMember.UserAccount
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $AzureADDirectoryRoleMember.UserPrincipalName
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $EntraIDDirectoryRoleMember.UserID
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $EntraIDDirectoryRoleMember.UserAccount
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $EntraIDDirectoryRoleMember.UserPrincipalName
 
     if ($IsSynced) {
         $CustomObject | Add-Member -MemberType NoteProperty -Name "SyncedOnPremAccount" -Value 'True'
@@ -786,17 +781,17 @@ $SyncedAdmins | Sort-Object UserPrincipalName -Descending -Unique | Sort-Object 
 
 
 
-# *** ON-PREM SYNC PANIC BUTTON: Block all Azure AD admin accounts that are synced from on-prem ***
+# *** ON-PREM SYNC PANIC BUTTON: Block all Entra ID admin accounts that are synced from on-prem ***
 # WARNING: Make sure you understand what you're doing before running this script!
 
 # Loop through admins synced from on-prem and block sign-ins.
 foreach ($SyncedAdmin in ($SyncedAdmins | Where-Object { $_.SyncedOnPremAccount -eq 'True' })) {
-    Set-AzureADUser -ObjectID $SyncedAdmin.UserID -AccountEnabled $false
+    Set-EntraIDUser -ObjectID $SyncedAdmin.UserID -AccountEnabled $false
 }
 
 # Check account status.
 foreach ($SyncedAdmin in ($SyncedAdmins | Where-Object { $_.SyncedOnPremAccount -eq 'True' })) {
-    Get-AzureADUser -ObjectID $SyncedAdmin.UserID | Select-Object userPrincipalName, AccountEnabled
+    Get-EntraIDUser -ObjectID $SyncedAdmin.UserID | Select-Object userPrincipalName, AccountEnabled
 }
 
 
@@ -807,13 +802,13 @@ foreach ($SyncedAdmin in ($SyncedAdmins | Where-Object { $_.SyncedOnPremAccount 
 Connect-MsolService
 
 # Loop through the admins from previous output and fetch LastPasswordChangeTimeStamp.
-$AdminPasswordChanges = foreach ($AzureADDirectoryRoleMember in ($AzureADDirectoryRoleMembers| Sort-Object UserID -Unique)) {
-    $LastPasswordChangeTimeStamp = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date -Date (Get-MsolUser -ObjectId $AzureADDirectoryRoleMember.UserID | Select-Object LastPasswordChangeTimeStamp).LastPasswordChangeTimeStamp), (Get-TimeZone).Id)
+$AdminPasswordChanges = foreach ($EntraIDDirectoryRoleMember in ($EntraIDDirectoryRoleMembers| Sort-Object UserID -Unique)) {
+    $LastPasswordChangeTimeStamp = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId((Get-Date -Date (Get-MsolUser -ObjectId $EntraIDDirectoryRoleMember.UserID | Select-Object LastPasswordChangeTimeStamp).LastPasswordChangeTimeStamp), (Get-TimeZone).Id)
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $AzureADDirectoryRoleMember.UserID
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $AzureADDirectoryRoleMember.UserAccount
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $AzureADDirectoryRoleMember.UserPrincipalName
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserID" -Value $EntraIDDirectoryRoleMember.UserID
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserAccount" -Value $EntraIDDirectoryRoleMember.UserAccount
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "UserPrincipalName" -Value $EntraIDDirectoryRoleMember.UserPrincipalName
     $CustomObject | Add-Member -MemberType NoteProperty -Name "LastPasswordChangeTimeStamp" -Value $LastPasswordChangeTimeStamp
     $CustomObject
 }
@@ -823,22 +818,22 @@ $AdminPasswordChanges | Sort-Object LastPasswordChangeTimeStamp -Descending | Fo
 
 
 
-# *** ADMIN PASSWORD PANIC BUTTON: Reset passwords for all Azure AD admins (except for current user and break glass accounts) ***
+# *** ADMIN PASSWORD PANIC BUTTON: Reset passwords for all Entra ID admins (except for current user and break glass accounts) ***
 # WARNING: Make sure you understand what you're doing before running this script!
 
 # IMPORTANT: Define your break glass accounts.
 $BreakGlassAccounts = 'breakglass1@example.onmicrosoft.com', 'breakglass2@example.onmicrosoft.com'
 
-# The current user running PowerShell against Azure AD.
-$CurrentUser = (Get-AzureADCurrentSessionInfo).Account.Id
+# The current user running PowerShell against Entra ID.
+$CurrentUser = (Get-EntraIDCurrentSessionInfo).Account.Id
 
 # Loop through admins and set new complex passwords (using generated GUIDs).
-foreach ($AzureADDirectoryRoleMember in ($AzureADDirectoryRoleMembers | Sort-Object UserPrincipalName -Unique)) {
-    if ($AzureADDirectoryRoleMember.UserPrincipalName -notin $BreakGlassAccounts -and $AzureADDirectoryRoleMember.UserPrincipalName -ne $CurrentUser) {
-        Write-Verbose -Verbose -Message "Setting new password for $($AzureADDirectoryRoleMember.UserPrincipalName)..."
-        Set-AzureADUserPassword -ObjectId $AzureADDirectoryRoleMember.UserID -Password (ConvertTo-SecureString (New-Guid).Guid -AsPlainText -Force)
+foreach ($EntraIDDirectoryRoleMember in ($EntraIDDirectoryRoleMembers | Sort-Object UserPrincipalName -Unique)) {
+    if ($EntraIDDirectoryRoleMember.UserPrincipalName -notin $BreakGlassAccounts -and $EntraIDDirectoryRoleMember.UserPrincipalName -ne $CurrentUser) {
+        Write-Verbose -Verbose -Message "Setting new password for $($EntraIDDirectoryRoleMember.UserPrincipalName)..."
+        Set-EntraIDUserPassword -ObjectId $EntraIDDirectoryRoleMember.UserID -Password (ConvertTo-SecureString (New-Guid).Guid -AsPlainText -Force)
     } else {
-        Write-Verbose -Verbose -Message "Skipping $($AzureADDirectoryRoleMember.UserPrincipalName)!"
+        Write-Verbose -Verbose -Message "Skipping $($EntraIDDirectoryRoleMember.UserPrincipalName)!"
     }
 }
 
@@ -852,7 +847,7 @@ foreach ($AzureADDirectoryRoleMember in ($AzureADDirectoryRoleMembers | Sort-Obj
             }
             8 {
                 $Snippet = @'
-# This script uses an Azure AD app registration to download all files from all M365 groups (Teams) document libraries in a tenant.
+# This script uses an Entra ID app registration to download all files from all M365 groups (Teams) document libraries in a tenant.
 
 # One of the following Graph API app permissions is required:
 # - Files.Read.All
@@ -867,7 +862,7 @@ Invoke-DCM365DataExfiltration -ClientID '' -ClientSecret '' -TenantName 'COMPANY
 Invoke-DCM365DataExfiltration -ClientID '' -ClientSecret '' -TenantName 'COMPANY.onmicrosoft.com'
 
 
-# This script uses an Azure AD app registration to wipe all files from all M365 groups (Teams) document libraries in a tenant.
+# This script uses an Entra ID app registration to wipe all files from all M365 groups (Teams) document libraries in a tenant.
 
 # One of the following Graph API app permissions is required:
 # - Files.ReadWrite.All
@@ -908,117 +903,11 @@ Invoke-DCM365DataWiper -ClientID '' -ClientSecret '' -TenantName 'COMPANY.onmicr
 	
 
     # Create example menu.
-    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Azure AD Privileged Identity Management (PIM) role", "Manage stale Azure AD accounts", "Azure MFA SMS and voice call methods cleanup script", "General PowerShell script template", "Azure AD Security Breach Kick-Out Process", "Microsoft 365 Data Exfiltration / Wiper Attack"
+    $Choice = CreateMenu -MenuTitle "Copy DCToolbox example to clipboard" -MenuChoices "Microsoft Graph with PowerShell examples", "Manage Conditional Access as code", "Activate an Entra ID Privileged Identity Management (PIM) role", "Manage stale Entra ID accounts", "Azure MFA SMS and voice call methods cleanup script", "General PowerShell script template", "Entra ID Security Breach Kick-Out Process", "Microsoft 365 Data Exfiltration / Wiper Attack"
     
 
     # Handle menu choice.
     HandleMenuChoice -MenuChoice $Choice
-}
-
-
-
-function Connect-DCMsGraphAsDelegated {
-    <#
-        .SYNOPSIS
-            Connect to Microsoft Graph with delegated credentials (interactive login will popup).
-
-        .DESCRIPTION
-            This CMDlet will prompt you to sign in to Azure AD. If successfull an access token is returned that can be used with other Graph CMDlets. Make sure you store the access token in a variable according to the example.
-
-            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
-            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
-            
-        .PARAMETER ClientID
-            Client ID for your Azure AD application.
-        
-        .PARAMETER ClientSecret
-            Client secret for the Azure AD application.
-            
-        .INPUTS
-            None
-
-        .OUTPUTS
-            None
-
-        .NOTES
-            Author:   Daniel Chronlund
-            GitHub:   https://github.com/DanielChronlund/DCToolbox
-            Blog:     https://danielchronlund.com/
-        
-        .EXAMPLE
-            $AccessToken = Connect-DCMsGraphAsDelegated -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/'
-    #>
-
-
-    param (
-        [parameter(Mandatory = $true)]
-        [string]$ClientID,
-
-        [parameter(Mandatory = $true)]
-        [string]$ClientSecret
-    )
-
-
-    # Declarations.
-    $Resource = "https://graph.microsoft.com"
-    $RedirectUri = "https://login.microsoftonline.com/common/oauth2/nativeclient"
-
-
-    # Force TLS 1.2.
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-
-    # UrlEncode the ClientID and ClientSecret and URL's for special characters.
-    Add-Type -AssemblyName System.Web
-    $ClientSecretEncoded = [System.Web.HttpUtility]::UrlEncode($ClientSecret)
-    $ResourceEncoded = [System.Web.HttpUtility]::UrlEncode($Resource)
-    $RedirectUriEncoded = [System.Web.HttpUtility]::UrlEncode($RedirectUri)
-
-
-    # Function to popup Auth Dialog Windows Form.
-    function Get-AuthCode {
-        Add-Type -AssemblyName System.Windows.Forms
-        $Form = New-Object -TypeName System.Windows.Forms.Form -Property @{Width = 440; Height = 640 }
-        $Web = New-Object -TypeName System.Windows.Forms.WebBrowser -Property @{Width = 420; Height = 600; Url = ($Url -f ($Scope -join "%20")) }
-        $DocComp = {
-            $Global:uri = $Web.Url.AbsoluteUri        
-            if ($Global:uri -match "error=[^&]*|code=[^&]*") {
-                $Form.Close() 
-            }
-        }
-
-        $Web.ScriptErrorsSuppressed = $true
-        $Web.Add_DocumentCompleted($DocComp)
-        $Form.Controls.Add($Web)
-        $Form.Add_Shown( { $Form.Activate() })
-        $Form.ShowDialog() | Out-Null
-        $QueryOutput = [System.Web.HttpUtility]::ParseQueryString($Web.Url.Query)
-        $Output = @{ }
-
-        foreach ($Key in $QueryOutput.Keys) {
-            $Output["$Key"] = $QueryOutput[$Key]
-        }
-    }
-
-
-    # Get AuthCode.
-    $Url = "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&redirect_uri=$RedirectUriEncoded&client_id=$ClientID&resource=$ResourceEncoded&prompt=admin_consent&scope=$ScopeEncoded"
-
-    
-
-
-    # Extract Access token from the returned URI.
-    $Regex = '(?<=code=)(.*)(?=&)'
-    $AuthCode = ($Uri | Select-String -Pattern $Regex).Matches[0].Value
-
-
-    # Get Access Token.
-    $Body = "grant_type=authorization_code&redirect_uri=$RedirectUri&client_id=$ClientId&client_secret=$ClientSecretEncoded&code=$AuthCode&resource=$Resource"
-    $TokenResponse = Invoke-RestMethod https://login.microsoftonline.com/common/oauth2/token -Method Post -ContentType "application/x-www-form-urlencoded" -Body $Body -ErrorAction "Stop"
-
-
-    # Return the access token.
-    $TokenResponse.access_token
 }
 
 
@@ -1031,14 +920,14 @@ function Connect-DCMsGraphAsApplication {
         .DESCRIPTION
             This CMDlet will automatically connect to Microsoft Graph using application permissions (as opposed to delegated credentials). If successfull an access token is returned that can be used with other Graph CMDlets. Make sure you store the access token in a variable according to the example.
 
-            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
+            Before running this CMDlet, you first need to register a new application in your Entra ID according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
             
         .PARAMETER ClientID
-            Client ID for your Azure AD application.
+            Client ID for your Entra ID application.
 
         .PARAMETER ClientSecret
-            Client secret for the Azure AD application.
+            Client secret for the Entra ID application.
 
         .PARAMETER TenantName
             The name of your tenant (example.onmicrosoft.com).
@@ -1099,7 +988,7 @@ function Invoke-DCMsGraphQuery {
         .DESCRIPTION
             This CMDlet will run a query against Microsoft Graph and return the result. It will connect using an access token generated by Connect-DCMsGraphAsDelegated or Connect-DCMsGraphAsApplication (depending on what permissions you use in Graph).
 
-            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
+            Before running this CMDlet, you first need to register a new application in your Entra ID according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
             
         .PARAMETER AccessToken
@@ -1192,13 +1081,13 @@ function Invoke-DCMsGraphQuery {
 
 
 
-function Enable-DCAzureADPIMRole {
+function Enable-DCEntraIDPIMRole {
     <#
         .SYNOPSIS
-            Activate an Azure AD Privileged Identity Management (PIM) role with PowerShell.
+            Activate an Entra ID Privileged Identity Management (PIM) role with PowerShell.
 
         .DESCRIPTION
-            Uses the Azure AD module and the MSAL module to activate a user selected Azure AD role in Azure AD Privileged Identity Management (PIM) with PowerShell. It uses MSAL to force an MFA prompt, even if not required. This is needed because PIM role activation often requires MFA approval.
+            Uses the Entra ID module and the MSAL module to activate a user selected Entra ID role in Entra ID Privileged Identity Management (PIM) with PowerShell. It uses MSAL to force an MFA prompt, even if not required. This is needed because PIM role activation often requires MFA approval.
 
             During activation, the user will be prompted to specify a reason for the activation.
         
@@ -1223,16 +1112,16 @@ function Enable-DCAzureADPIMRole {
             Blog:     https://danielchronlund.com/
         
         .EXAMPLE
-            Enable-DCAzureADPIMRole
+            Enable-DCEntraIDPIMRole
 
         .EXAMPLE
-            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
+            Enable-DCEntraIDPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader'
 
         .EXAMPLE
-            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaximumTimeAllowed
+            Enable-DCEntraIDPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaximumTimeAllowed
 
         .EXAMPLE
-            Enable-DCAzureADPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -Reason 'Performing some Exchange security configuration.' -UseMaximumTimeAllowed
+            Enable-DCEntraIDPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -Reason 'Performing some Exchange security configuration.' -UseMaximumTimeAllowed
     #>
 
     param (
@@ -1249,12 +1138,12 @@ function Enable-DCAzureADPIMRole {
     # Set Error Action - Possible choices: Stop, SilentlyContinue
     $ErrorActionPreference = "Stop"
 
-    # Check if the Azure AD Preview module is installed.
-    if (Get-Module -ListAvailable -Name "AzureADPreview") {
+    # Check if the Entra ID Preview module is installed.
+    if (Get-Module -ListAvailable -Name "EntraIDPreview") {
         # Do nothing.
     } 
     else {
-        Write-Error -Exception "The Azure AD Preview PowerShell module is not installed. Please, run 'Install-Module AzureADPreview -Force' as an admin and try again." -ErrorAction Stop
+        Write-Error -Exception "The Entra ID Preview PowerShell module is not installed. Please, run 'Install-Module EntraIDPreview -Force' as an admin and try again." -ErrorAction Stop
     }
 
     # Check if the MSAL module is installed.
@@ -1265,14 +1154,14 @@ function Enable-DCAzureADPIMRole {
         Write-Error -Exception "The MSAL module is not installed. Please, run 'Install-Package msal.ps -Force' as an admin and try again." -ErrorAction Stop
     }
 
-    # Make sure AzureADPreview is the loaded PowerShell module even if AzureAD is installed.
-    Remove-Module AzureAD -ErrorAction SilentlyContinue
-    Import-Module AzureADPreview
+    # Make sure EntraIDPreview is the loaded PowerShell module even if EntraID is installed.
+    Remove-Module EntraID -ErrorAction SilentlyContinue
+    Import-Module EntraIDPreview
 
-    # Function to check if there already is an active Azure AD session.
-    function AzureAdConnected {
+    # Function to check if there already is an active Entra ID session.
+    function EntraIDConnected {
         try {
-            Get-AzureADTenantDetail | Out-Null
+            Get-EntraIDTenantDetail | Out-Null
             $true
         } 
         catch {
@@ -1280,10 +1169,10 @@ function Enable-DCAzureADPIMRole {
         }
     }
 
-    # Check if already connected to Azure AD.
-    if (!(AzureAdConnected)) {
+    # Check if already connected to Entra ID.
+    if (!(EntraIDConnected)) {
         # Try to force MFA challenge (since it is often required for PIM role activation).
-        Write-Verbose -Verbose -Message 'Connecting to Azure AD...'
+        Write-Verbose -Verbose -Message 'Connecting to Entra ID...'
 
         # Get token for MS Graph by prompting for MFA.
         $MsResponse = Get-MsalToken -Scopes @('https://graph.microsoft.com/.default') -ClientId "1b730954-1685-4b74-9bfd-dac224a7b894" -RedirectUri "urn:ietf:wg:oauth:2.0:oob" -Authority 'https://login.microsoftonline.com/common' -Interactive -ExtraQueryParameters @{claims = '{"access_token" : {"amr": { "values": ["mfa"] }}}' }
@@ -1294,39 +1183,39 @@ function Enable-DCAzureADPIMRole {
         $AccountId = $AadResponse.Account.HomeAccountId.ObjectId
         $TenantId = $AadResponse.Account.HomeAccountId.TenantId
 
-        Connect-AzureAD -AadAccessToken $AadResponse.AccessToken -MsAccessToken $MsResponse.AccessToken -AccountId $AccountId -TenantId:  $TenantId | Out-Null
+        Connect-EntraID -AadAccessToken $AadResponse.AccessToken -MsAccessToken $MsResponse.AccessToken -AccountId $AccountId -TenantId:  $TenantId | Out-Null
     }
 
     # Fetch session information.
-    $AzureADCurrentSessionInfo = Get-AzureADCurrentSessionInfo
+    $EntraIDCurrentSessionInfo = Get-EntraIDCurrentSessionInfo
 
     # Fetch current user object ID.
-    $CurrentAccountId = $AzureADCurrentSessionInfo.Account.Id
-    $CurrentAccountId = (Get-AzureADUser -ObjectId $CurrentAccountId).ObjectId
+    $CurrentAccountId = $EntraIDCurrentSessionInfo.Account.Id
+    $CurrentAccountId = (Get-EntraIDUser -ObjectId $CurrentAccountId).ObjectId
 
-    # Fetch all Azure AD role definitions.
-    $AzureADMSPrivilegedRoleDefinition = Get-AzureADMSPrivilegedRoleDefinition -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId.Guid
+    # Fetch all Entra ID role definitions.
+    $EntraIDMSPrivilegedRoleDefinition = Get-EntraIDMSPrivilegedRoleDefinition -ProviderId 'aadRoles' -ResourceId $EntraIDCurrentSessionInfo.TenantId.Guid
 
-    # Fetch all Azure AD role settings.
-    $AzureADMSPrivilegedRoleSetting = Get-AzureADMSPrivilegedRoleSetting -ProviderId 'aadRoles' -Filter "ResourceId eq '$($AzureADCurrentSessionInfo.TenantId)'"
+    # Fetch all Entra ID role settings.
+    $EntraIDMSPrivilegedRoleSetting = Get-EntraIDMSPrivilegedRoleSetting -ProviderId 'aadRoles' -Filter "ResourceId eq '$($EntraIDCurrentSessionInfo.TenantId)'"
 
     # Fetch all PIM role assignments for the current user.
-    $AzureADMSPrivilegedRoleAssignment = Get-AzureADMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $AzureADCurrentSessionInfo.TenantId -Filter "SubjectId eq '$CurrentAccountId'" | Where-Object { $_.AssignmentState -eq 'Eligible' }
+    $EntraIDMSPrivilegedRoleAssignment = Get-EntraIDMSPrivilegedRoleAssignment -ProviderId "aadRoles" -ResourceId $EntraIDCurrentSessionInfo.TenantId -Filter "SubjectId eq '$CurrentAccountId'" | Where-Object { $_.AssignmentState -eq 'Eligible' }
 
     # Exit if no roles are found.
-    if ($AzureADMSPrivilegedRoleAssignment.Count -eq 0) {
+    if ($EntraIDMSPrivilegedRoleAssignment.Count -eq 0) {
         Write-Verbose -Verbose -Message ''
         Write-Verbose -Verbose -Message 'Found no eligible PIM roles to activate :('
         break
     }
 
     # Format the fetched information.
-    $CurrentAccountRoles = foreach ($RoleAssignment in ($AzureADMSPrivilegedRoleAssignment | Select-Object -Unique)) {
+    $CurrentAccountRoles = foreach ($RoleAssignment in ($EntraIDMSPrivilegedRoleAssignment | Select-Object -Unique)) {
         $CustomObject = New-Object -TypeName psobject
         $CustomObject | Add-Member -MemberType NoteProperty -Name 'RoleDefinitionId' -Value $RoleAssignment.RoleDefinitionId
-        $CustomObject | Add-Member -MemberType NoteProperty -Name 'DisplayName' -Value ($AzureADMSPrivilegedRoleDefinition | Where-Object { $_.Id -eq $RoleAssignment.RoleDefinitionId } ).DisplayName
+        $CustomObject | Add-Member -MemberType NoteProperty -Name 'DisplayName' -Value ($EntraIDMSPrivilegedRoleDefinition | Where-Object { $_.Id -eq $RoleAssignment.RoleDefinitionId } ).DisplayName
         $CustomObject | Add-Member -MemberType NoteProperty -Name 'AssignmentState' -Value $RoleAssignment.AssignmentState
-        $CustomObject | Add-Member -MemberType NoteProperty -Name 'maximumGrantPeriodInMinutes' -Value ((($AzureADMSPrivilegedRoleSetting | Where-Object { $_.RoleDefinitionId -eq $RoleAssignment.RoleDefinitionId }).UserMemberSettings | Where-Object { $_.RuleIdentifier -eq 'ExpirationRule' }).Setting | ConvertFrom-Json).maximumGrantPeriodInMinutes
+        $CustomObject | Add-Member -MemberType NoteProperty -Name 'maximumGrantPeriodInMinutes' -Value ((($EntraIDMSPrivilegedRoleSetting | Where-Object { $_.RoleDefinitionId -eq $RoleAssignment.RoleDefinitionId }).UserMemberSettings | Where-Object { $_.RuleIdentifier -eq 'ExpirationRule' }).Setting | ConvertFrom-Json).maximumGrantPeriodInMinutes
         $CustomObject | Add-Member -MemberType NoteProperty -Name 'StartDateTime' -Value $RoleAssignment.StartDateTime
         $CustomObject | Add-Member -MemberType NoteProperty -Name 'EndDateTime' -Value $RoleAssignment.EndDateTime
         $CustomObject
@@ -1414,14 +1303,14 @@ function Enable-DCAzureADPIMRole {
         }
 
         # Create activation schedule based on the current role limit.
-        $Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
+        $Schedule = New-Object Microsoft.Open.MSGraph.Model.EntraIDMSPrivilegedSchedule
         $Schedule.Type = "Once"
         $Schedule.StartDateTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         $Schedule.endDateTime = ((Get-Date).AddHours($Duration)).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
 
         # Activate PIM role.
         Write-Verbose -Verbose -Message "Activating PIM role '$($Role.DisplayName)'..."
-        Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId 'aadRoles' -ResourceId $AzureADCurrentSessionInfo.TenantId -RoleDefinitionId $Role.RoleDefinitionId -SubjectId $CurrentAccountId -Type 'UserAdd' -AssignmentState 'Active' -Schedule $Schedule -Reason $Reason | Out-Null
+        Open-EntraIDMSPrivilegedRoleAssignmentRequest -ProviderId 'aadRoles' -ResourceId $EntraIDCurrentSessionInfo.TenantId -RoleDefinitionId $Role.RoleDefinitionId -SubjectId $CurrentAccountId -Type 'UserAdd' -AssignmentState 'Active' -Schedule $Schedule -Reason $Reason | Out-Null
 
         Write-Verbose -Verbose -Message "$($Role.DisplayName) has been activated until $($Schedule.endDateTime)!"
     }
@@ -1429,13 +1318,13 @@ function Enable-DCAzureADPIMRole {
 
 
 
-function Invoke-DCAzureADDeviceAuthFlow {
+function Invoke-DCEntraIDDeviceAuthFlow {
     <#
         .SYNOPSIS
-            Get a refresh token from Azure AD using device code flow.
+            Get a refresh token (or access token) from Entra ID using device code flow.
 
         .DESCRIPTION
-            This CMDlet will start a device code flow authentication process in Azure AD. Go to the provided URL and enter the code to authenticate. The script will wait for the authentication and then return the refresh token, and also copy it to the clipboard.
+            This CMDlet will start a device code flow authentication process in Entra ID. Go to the provided URL and enter the code to authenticate. The script will wait for the authentication and then return the refresh token, and also copy it to the clipboard.
 
             A refresh token fetched by this tool can be replayed on another device.
         
@@ -1446,7 +1335,7 @@ function Invoke-DCAzureADDeviceAuthFlow {
             Return an access token instead of a refresh token.
 
         .PARAMETER ClientID
-            OPTIONAL: Specify the client ID for which a refresh token should be requested. Defaults to 'Microsoft Azure PowerShell' (1950a258-227b-4e31-a9cf-717495945fc2). If you set this parameter, you must also specify -TenantID. Note that the app registration in Azure AD must have device code flow enabled under Authentication > Advanced settings.
+            OPTIONAL: Specify the client ID for which a refresh token should be requested. Defaults to 'Microsoft Azure PowerShell' (1950a258-227b-4e31-a9cf-717495945fc2). If you set this parameter, you must also specify -TenantID. Note that the app registration in Entra ID must have device code flow enabled under Authentication > Advanced settings.
 
         .PARAMETER TenantID
             OPTIONAL: Specify your tenant ID. You only need to specify this if you're specifying a ClientID with -ClientID. This is because Microsoft needs to now in which tenant a specific app is located.
@@ -1455,7 +1344,7 @@ function Invoke-DCAzureADDeviceAuthFlow {
             None
 
         .OUTPUTS
-            Azure AD Refresh Token
+            Entra ID Refresh Token
 
         .NOTES
             Author:   Daniel Chronlund
@@ -1463,16 +1352,16 @@ function Invoke-DCAzureADDeviceAuthFlow {
             Blog:     https://danielchronlund.com/
         
         .EXAMPLE
-            Invoke-DCAzureADDeviceAuthFlow
+            Invoke-DCEntraIDDeviceAuthFlow
 
         .EXAMPLE
-            $RefreshToken = Invoke-DCAzureADDeviceAuthFlow
+            $RefreshToken = Invoke-DCEntraIDDeviceAuthFlow
 
         .EXAMPLE
-            Invoke-DCAzureADDeviceAuthFlow -ShowTokenDetails
+            Invoke-DCEntraIDDeviceAuthFlow -ShowTokenDetails
 
         .EXAMPLE
-            Invoke-DCAzureADDeviceAuthFlow -ClientID '' -TenantID ''
+            Invoke-DCEntraIDDeviceAuthFlow -ClientID '' -TenantID ''
     #>
 
 
@@ -1507,7 +1396,7 @@ function Invoke-DCAzureADDeviceAuthFlow {
     Write-Host -ForegroundColor Cyan "   $($authResponse.verification_uri)"
     Write-Host ""
     Write-Host -ForegroundColor Yellow "Enter this code (it's in your clipboard):"
-    $($authResponse.user_code) | clip
+    $($authResponse.user_code) | Set-Clipboard
     Write-Host -ForegroundColor Cyan "   $($authResponse.user_code)"
     Write-Host ""
 
@@ -1543,7 +1432,7 @@ function Invoke-DCAzureADDeviceAuthFlow {
                 Write-Host ""
                 Write-Host -ForegroundColor Yellow "Access token was copied to clipboard!"
                 Write-Host ""
-                $Tokens.access_token | clip
+                $Tokens.access_token | Set-Clipboard
             } else {
                 Write-Host ""
                 Write-Host -ForegroundColor Yellow "Refresh token:"
@@ -1552,7 +1441,7 @@ function Invoke-DCAzureADDeviceAuthFlow {
                 Write-Host ""
                 Write-Host -ForegroundColor Yellow "Refresh token was copied to clipboard!"
                 Write-Host ""
-                $Tokens.refresh_token | clip
+                $Tokens.refresh_token | Set-Clipboard
             }
             
             return
@@ -1711,17 +1600,17 @@ function Start-DCTorHttpProxy {
 
 
 
-function Test-DCAzureAdUserExistence {
+function Test-DCEntraIDUserExistence {
     <#
         .SYNOPSIS
-            Test if an account exists in Azure AD for specified email addresses.
+            Test if an account exists in Entra ID for specified email addresses.
         
         .DESCRIPTION
-            This CMDlet will connect to public endpoints in Azure AD to find out if an account exists for specified email addresses or not. This script works without any authentication to Azure AD. This is called user enumeration in cyber security.
+            This CMDlet will connect to public endpoints in Entra ID to find out if an account exists for specified email addresses or not. This script works without any authentication to Entra ID. This is called user enumeration in cyber security.
             
             The script can't see accounts for federated domains (since they are on-prem accounts) but it will tell you what organisation the federated domain belongs to.
 
-            Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Azure AD configuration.
+            Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Entra ID configuration.
         
         .PARAMETER Users
             An array of one or more user email addresses to test.
@@ -1730,7 +1619,7 @@ function Test-DCAzureAdUserExistence {
             Use a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
         
         .EXAMPLE
-            Test-DCAzureAdUserExistence -UseTorHttpProxy -Users "user1@example.com", "user2@example.com", "user3@example.onmicrosoft.com"
+            Test-DCEntraIDUserExistence -UseTorHttpProxy -Users "user1@example.com", "user2@example.com", "user3@example.onmicrosoft.com"
         
         .INPUTS
             None
@@ -1760,7 +1649,7 @@ function Test-DCAzureAdUserExistence {
         # Add username.
         $TestObject | Add-Member -MemberType NoteProperty -Name "Username" -Value $User
 
-        # Check if user account exists in Azure AD.
+        # Check if user account exists in Entra ID.
         $IfExistsResult = 1
 
         if ($UseTorHttpProxy) {
@@ -1788,7 +1677,7 @@ function Test-DCAzureAdUserExistence {
             if ($Response.RealmInfo.IsFederatedNS -eq $true) {
                 $TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "Unknown (federated domain: $((($Response.RealmInfo.AuthURL -split "//")[1] -split "/")[0]))"
             }
-            # If the domain is Managed (not federated) we can tell if an account exists in Azure AD :)
+            # If the domain is Managed (not federated) we can tell if an account exists in Entra ID :)
             else {
                 $TestObject | Add-Member -MemberType NoteProperty -Name "UserExists" -Value "Yes"
             }
@@ -1803,15 +1692,15 @@ function Test-DCAzureAdUserExistence {
 
 
 
-function Test-DCAzureAdCommonAdmins {
+function Test-DCEntraIDCommonAdmins {
     <#
         .SYNOPSIS
-            Test if common and easily guessed admin usernames exist for specified Azure AD domains.
+            Test if common and easily guessed admin usernames exist for specified Entra ID domains.
         
         .DESCRIPTION
-            Uses Test-DCAzureAdUserExistence to test if common and weak admin account names exist in specified Azure AD domains. It uses publicaly available Microsoft endpoints to query for this information. Run help Test-DCAzureAdUserExistence for more info.
+            Uses Test-DCEntraIDUserExistence to test if common and weak admin account names exist in specified Entra ID domains. It uses publicaly available Microsoft endpoints to query for this information. Run help Test-DCEntraIDUserExistence for more info.
 
-            Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Azure AD configuration.
+            Do not use this script in an unethical or unlawful way. Use it to find weak spots in you Entra ID configuration.
         
         .PARAMETER Domains
             An array of one or more domains to test.
@@ -1820,7 +1709,7 @@ function Test-DCAzureAdCommonAdmins {
             Use a running Tor network HTTP proxy that was started by Start-DCTorHttpProxy.
         
         .EXAMPLE
-            Test-DCAzureAdCommonAdmins -UseTorHttpProxy -Domains "example.com", "example2.onmicrosoft.com"
+            Test-DCEntraIDCommonAdmins -UseTorHttpProxy -Domains "example.com", "example2.onmicrosoft.com"
         
         .INPUTS
             None
@@ -1883,32 +1772,32 @@ function Test-DCAzureAdCommonAdmins {
 
     foreach ($Domain in $Domains) {
         if ($UseTorHttpProxy) {
-            Test-DCAzureAdUserExistence -UseTorHttpProxy -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
+            Test-DCEntraIDUserExistence -UseTorHttpProxy -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
         }
         else {
-            Test-DCAzureAdUserExistence -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
+            Test-DCEntraIDUserExistence -Users ($CommonAdminUsernames -replace "DOMAINNAME", $Domain)
         }
     }   
 }
 
 
 
-function Get-DCAzureADUsersAndGroupsAsGuest {
+function Get-DCEntraIDUsersAndGroupsAsGuest {
     <#
         .SYNOPSIS
-            This script lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Azure AD is set to the default configuration.
+            This script lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Entra ID is set to the default configuration.
         
         .DESCRIPTION
-            This script is a proof of concept. Don't use it for bad things! It lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Azure AD is set to the default configuration. It works around the limitation that guest users must do explicit lookups for users and groups. It basically produces a list of all users and groups in the tenant, even though such actions are blocked for guests by default.
+            This script is a proof of concept. Don't use it for bad things! It lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Entra ID is set to the default configuration. It works around the limitation that guest users must do explicit lookups for users and groups. It basically produces a list of all users and groups in the tenant, even though such actions are blocked for guests by default.
             
-            If the target tenant allows guest users to sign in with Azure AD PowerShell, and the 'Guest user access restrictions' is set to one of these two settings:
+            If the target tenant allows guest users to sign in with Entra ID PowerShell, and the 'Guest user access restrictions' is set to one of these two settings:
             'Guest users have the same access as members (most inclusive)'
             'Guest users have limited access to properties and memberships of directory objects' [default]
 
             And not set to:
             'Guest user access is restricted to properties and memberships of their own directory objects (most restrictive)'
 
-            ...then this script will query Azure AD for the group memberships of the specified -InterestingUsers that you already know the UPN of. It then perform nested queries until all users and groups have been found. It will stop after a maximum of 5 iterations to avoid throttling and infinite loops. "A friend of a friend of a friend..."
+            ...then this script will query Entra ID for the group memberships of the specified -InterestingUsers that you already know the UPN of. It then perform nested queries until all users and groups have been found. It will stop after a maximum of 5 iterations to avoid throttling and infinite loops. "A friend of a friend of a friend..."
 
             Finally, the script will output one array with found users, and one array with found groups/teams. You can then export them to CSV or some other format of your choice. Export examples are outputed for your convenience.
         
@@ -1922,7 +1811,7 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
             One or more UPNs of users in the target tenant. These will serve as a starting point for the search, and one or two employees you know about is often sufficient to enumerate everything.
         
         .EXAMPLE
-            Get-DCAzureADUsersAndGroupsAsGuest -TenantId '00000000-0000-0000-0000-000000000000' -AccountId 'user@example.com' -InterestingUsers 'customer1@customer.com', 'customer2@customer.com'
+            Get-DCEntraIDUsersAndGroupsAsGuest -TenantId '00000000-0000-0000-0000-000000000000' -AccountId 'user@example.com' -InterestingUsers 'customer1@customer.com', 'customer2@customer.com'
 
         .INPUTS
             None
@@ -1950,8 +1839,8 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
 
 
     # Connect to the target tenant as a guest.
-    Write-Verbose -Verbose -Message 'Connecting to Azure AD as guest...'
-    Connect-AzureAD -TenantId $TenantId -AccountId $AccountId | Out-Null
+    Write-Verbose -Verbose -Message 'Connecting to Entra ID as guest...'
+    Connect-EntraID -TenantId $TenantId -AccountId $AccountId | Out-Null
 
 
     # Variables to collect.
@@ -1962,8 +1851,8 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
     # First round.
     Write-Verbose -Verbose -Message 'Starting round 1...'
     $global:FoundUsers = foreach ($User in $InterestingUsers) {
-        $FormatedUser = Get-AzureADUser -ObjectId $User
-        $Manager = Get-AzureADUserManager -ObjectId $FormatedUser.ObjectId
+        $FormatedUser = Get-EntraIDUser -ObjectId $User
+        $Manager = Get-EntraIDUserManager -ObjectId $FormatedUser.ObjectId
         $FormatedUser | Add-Member -NotePropertyName 'ManagerDisplayName' -NotePropertyValue $Manager.DisplayName -Force
         $FormatedUser | Add-Member -NotePropertyName 'ManagerUpn' -NotePropertyValue $Manager.UserPrincipalName -Force
         $FormatedUser | Add-Member -NotePropertyName 'ManagerObjectId' -NotePropertyValue $Manager.ObjectId -Force
@@ -1979,7 +1868,7 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
         Write-Verbose -Verbose -Message "Starting round $i..."
 
         foreach ($User in $global:FoundUsers) {
-            $Groups = Get-AzureADUserMembership -ObjectID $User.UserPrincipalName | Where-Object DisplayName -NE $null
+            $Groups = Get-EntraIDUserMembership -ObjectID $User.UserPrincipalName | Where-Object DisplayName -NE $null
 
             foreach ($Group in $Groups) {
                 if ($global:FoundGroups.ObjectId) {
@@ -1991,7 +1880,7 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
                         $Members = @()
 
                         try {
-                            $Members = Get-AzureADGroupMember -All:$true -ObjectId $Group.ObjectId -ErrorAction SilentlyContinue
+                            $Members = Get-EntraIDGroupMember -All:$true -ObjectId $Group.ObjectId -ErrorAction SilentlyContinue
                         }
                         catch {
                             # Do nothing.
@@ -1999,8 +1888,8 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
 
                         foreach ($Member in $Members) {
                             if (!($global:FoundUsers.ObjectId.Contains($Member.ObjectId))) {
-                                $FormatedUser = Get-AzureADUser -ObjectId $Member.ObjectId -ErrorAction SilentlyContinue
-                                $Manager = Get-AzureADUserManager -ObjectId $FormatedUser.ObjectId
+                                $FormatedUser = Get-EntraIDUser -ObjectId $Member.ObjectId -ErrorAction SilentlyContinue
+                                $Manager = Get-EntraIDUserManager -ObjectId $FormatedUser.ObjectId
                                 $FormatedUser | Add-Member -NotePropertyName 'ManagerDisplayName' -NotePropertyValue $Manager.DisplayName -Force
                                 $FormatedUser | Add-Member -NotePropertyName 'ManagerUpn' -NotePropertyValue $Manager.UserPrincipalName -Force
                                 $FormatedUser | Add-Member -NotePropertyName 'ManagerObjectId' -NotePropertyValue $Manager.ObjectId -Force
@@ -2017,7 +1906,7 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
                     $Members = @()
 
                     try {
-                        $Members = Get-AzureADGroupMember -All:$true -ObjectId $Group.ObjectId -ErrorAction SilentlyContinue
+                        $Members = Get-EntraIDGroupMember -All:$true -ObjectId $Group.ObjectId -ErrorAction SilentlyContinue
                     }
                     catch {
                         # Do nothing.
@@ -2025,8 +1914,8 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
 
                     foreach ($Member in $Members) {
                         if (!($global:FoundUsers.ObjectId.Contains($Member.ObjectId))) {
-                            $FormatedUser = Get-AzureADUser -ObjectId $Member.ObjectId -ErrorAction SilentlyContinue
-                            $Manager = Get-AzureADUserManager -ObjectId $FormatedUser.ObjectId
+                            $FormatedUser = Get-EntraIDUser -ObjectId $Member.ObjectId -ErrorAction SilentlyContinue
+                            $Manager = Get-EntraIDUserManager -ObjectId $FormatedUser.ObjectId
                             $FormatedUser | Add-Member -NotePropertyName 'ManagerDisplayName' -NotePropertyValue $Manager.DisplayName -Force
                             $FormatedUser | Add-Member -NotePropertyName 'ManagerUpn' -NotePropertyValue $Manager.UserPrincipalName -Force
                             $FormatedUser | Add-Member -NotePropertyName 'ManagerObjectId' -NotePropertyValue $Manager.ObjectId -Force
@@ -2072,12 +1961,12 @@ function Get-DCAzureADUsersAndGroupsAsGuest {
 function Invoke-DCM365DataExfiltration {
     <#
         .SYNOPSIS
-            This script uses an Azure AD app registration to download all files from all M365 groups (Teams) document libraries in a tenant.
+            This script uses an Entra ID app registration to download all files from all M365 groups (Teams) document libraries in a tenant.
         
         .DESCRIPTION
             This script is a proof of concept and for testing purposes only. Do not use this script in an unethical or unlawful way. Don’t be stupid!
             
-            This script showcase how an attacker can exfiltrate huge amounts of files from a Microsoft 365 tenant, using a poorly protected Azure AD app registration with any of the following Microsoft Graph permissions:
+            This script showcase how an attacker can exfiltrate huge amounts of files from a Microsoft 365 tenant, using a poorly protected Entra ID app registration with any of the following Microsoft Graph permissions:
 
             - Files.Read.All
             - Files.ReadWrite.All
@@ -2099,10 +1988,10 @@ function Invoke-DCM365DataExfiltration {
             You can run the script with -WhatIf to skip the actual downloads. It will still show the output and what would have been downloaded.
         
         .PARAMETER ClientID
-            Client ID for your Azure AD application.
+            Client ID for your Entra ID application.
 
         .PARAMETER ClientSecret
-            Client secret for the Azure AD application.
+            Client secret for the Entra ID application.
 
         .PARAMETER TenantName
             The name of your tenant (example.onmicrosoft.com).
@@ -2304,12 +2193,12 @@ function Invoke-DCM365DataExfiltration {
 function Invoke-DCM365DataWiper {
     <#
         .SYNOPSIS
-            This script uses an Azure AD app registration to wipe all files from all M365 groups (Teams) document libraries in a tenant.
+            This script uses an Entra ID app registration to wipe all files from all M365 groups (Teams) document libraries in a tenant.
         
         .DESCRIPTION
             This script is a proof of concept and for testing purposes only. Do not use this script in an unethical or unlawful way. Don’t be stupid!
             
-            This script showcase how an attacker can wipe huge amounts of files from a Microsoft 365 tenant, using a poorly protected Azure AD app registration with any of the following Microsoft Graph permissions:
+            This script showcase how an attacker can wipe huge amounts of files from a Microsoft 365 tenant, using a poorly protected Entra ID app registration with any of the following Microsoft Graph permissions:
 
             - Files.ReadWrite.All
             - Sites.ReadWrite.All
@@ -2329,10 +2218,10 @@ function Invoke-DCM365DataWiper {
             You can run the script with -WhatIf to skip the actual deletion. It will still show the output and what would have been deleted.
         
         .PARAMETER ClientID
-            Client ID for your Azure AD application.
+            Client ID for your Entra ID application.
 
         .PARAMETER ClientSecret
-            Client secret for the Azure AD application.
+            Client secret for the Entra ID application.
 
         .PARAMETER TenantName
             The name of your tenant (example.onmicrosoft.com).
@@ -2538,12 +2427,12 @@ function Invoke-DCM365DataWiper {
 function New-DCStaleAccountReport {
     <#
         .SYNOPSIS
-            Automatically generate an Excel report containing all stale Azure AD accounts.
+            Automatically generate an Excel report containing all stale Entra ID accounts.
 
         .DESCRIPTION
-            Uses Microsoft Graph to fetch all Azure AD users who has not signed in for a specific number of days, and exports an Excel report. Some users might not have a last sign-in timestamp at all (maybe they didn't sign in or maybe they signed in a very long time ago), but they are still included in the report.
+            Uses Microsoft Graph to fetch all Entra ID users who has not signed in for a specific number of days, and exports an Excel report. Some users might not have a last sign-in timestamp at all (maybe they didn't sign in or maybe they signed in a very long time ago), but they are still included in the report.
 
-            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
+            Before running this CMDlet, you first need to register a new application in your Entra ID according to this article:
             https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
 
             The following Microsoft Graph API permissions are required for this script to work:
@@ -2553,16 +2442,16 @@ function New-DCStaleAccountReport {
             The CMDlet also uses the PowerShell Excel Module for the export to Excel. You can install this module with:
             Install-Module ImportExcel -Force
             
-            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Global Reader, Security Admin, Security Reader, etc).
+            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Entra ID (Global Admin, Global Reader, Security Admin, Security Reader, etc).
             
         .PARAMETER ClientID
-            Client ID for the Azure AD application with Microsoft Graph permissions.
+            Client ID for the Entra ID application with Microsoft Graph permissions.
 
         .PARAMETER ClientSecret
-            Client secret for the Azure AD application with Microsoft Graph permissions.
+            Client secret for the Entra ID application with Microsoft Graph permissions.
 
         .PARAMETER LastSeenDaysAgo
-            Specify the number of days ago the account was last seen. Note that you can only see as long as your Azure AD sign-in logs reach (30 days by default).
+            Specify the number of days ago the account was last seen. Note that you can only see as long as your Entra ID sign-in logs reach (30 days by default).
 
         .PARAMETER OnlyMembers
             Only include member accounts (no guest accounts) in the report.
@@ -2577,7 +2466,7 @@ function New-DCStaleAccountReport {
             None
 
         .OUTPUTS
-            Excel report with all stale Azure AD accounts.
+            Excel report with all stale Entra ID accounts.
 
         .NOTES
             Author:   Daniel Chronlund
@@ -2748,7 +2637,7 @@ function New-DCStaleAccountReport {
 
     $Result2 = $Result2 | Sort-Object LastSignInActivity
 
-    Write-Verbose -Verbose -Message "Found $($Result2.Count) stale user accounts in Azure AD."
+    Write-Verbose -Verbose -Message "Found $($Result2.Count) stale user accounts in Entra ID."
 
 
     # Export the report to Excel.
@@ -2771,23 +2660,7 @@ function Export-DCConditionalAccessPolicyDesign {
         .DESCRIPTION
             This CMDlet uses Microsoft Graph to export all Conditional Access policies in the tenant to a JSON file. This JSON file can be used for backup, documentation or to deploy the same policies again with Import-DCConditionalAccessPolicyDesign. You can treat Conditional Access as code!
 
-            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
-            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
-
-            The following Microsoft Graph API permissions are required for this script to work:
-                Policy.ReadWrite.ConditionalAccess
-                Policy.Read.All
-                Directory.Read.All
-                Agreement.Read.All
-                Application.Read.All
-            
-            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
-            
-        .PARAMETER ClientID
-            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
-
-        .PARAMETER ClientSecret
-            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
+            The user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Entra ID (Global Admin, Security Admin, Conditional Access Admin, etc).
 
         .PARAMETER FilePath
             The file path where the new JSON file will be created. Skip to use the current path.
@@ -2807,17 +2680,16 @@ function Export-DCConditionalAccessPolicyDesign {
             Blog:     https://danielchronlund.com/
         
         .EXAMPLE
+            Export-DCConditionalAccessPolicyDesign
+
+        .EXAMPLE
             $Parameters = @{
-                ClientID = ''
-                ClientSecret = ''
                 FilePath = 'C:\Temp\Conditional Access.json'
             }
             Export-DCConditionalAccessPolicyDesign @Parameters
         
         .EXAMPLE
             $Parameters = @{
-                ClientID = ''
-                ClientSecret = ''
                 FilePath = 'C:\Temp\Conditional Access.json'
                 PrefixFilter = 'RING1'
             }
@@ -2830,12 +2702,6 @@ function Export-DCConditionalAccessPolicyDesign {
 
     # Script parameters.
     param (
-        [parameter(Mandatory = $true)]
-        [string]$ClientID,
-
-        [parameter(Mandatory = $true)]
-        [string]$ClientSecret,
-
         [parameter(Mandatory = $false)]
         [string]$FilePath = "$((Get-Location).Path)\Conditional Access Backup $(Get-Date -Format 'yyyy-MM-dd').json",
 
@@ -2853,7 +2719,7 @@ function Export-DCConditionalAccessPolicyDesign {
 
     # Authenticate to Microsoft Graph.
     Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
-    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+    $AccessToken = Invoke-DCEntraIDDeviceAuthFlow -ReturnAccessTokenInsteadOfRefreshToken
 
 
     # Show filter settings.
@@ -2902,26 +2768,10 @@ function Import-DCConditionalAccessPolicyDesign {
 
             WARNING: If you want to, you can also delete all existing policies when deploying your new ones with -DeleteAllExistingPolicies, Use this parameter with causon and allways create a backup with Export-DCConditionalAccessPolicyDesign first!
 
-            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
-            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
+            The user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Entra ID (Global Admin, Security Admin, Conditional Access Admin, etc).
 
-            The following Microsoft Graph API permissions are required for this script to work:
-                Policy.ReadWrite.ConditionalAccess
-                Policy.Read.All
-                Directory.Read.All
-                Agreement.Read.All
-                Application.Read.All
+            As a best practice you should always have an Entra ID security group with break glass accounts excluded from all Conditional Access policies.
             
-            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
-
-            As a best practice you should always have an Azure AD security group with break glass accounts excluded from all Conditional Access policies.
-            
-        .PARAMETER ClientID
-            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
-
-        .PARAMETER ClientSecret
-            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
-
         .PARAMETER FilePath
             The file path of the JSON file containing your Conditional Access policies.
 
@@ -2947,8 +2797,6 @@ function Import-DCConditionalAccessPolicyDesign {
         
         .EXAMPLE
             $Parameters = @{
-                ClientID = ''
-                ClientSecret = ''
                 FilePath = 'C:\Temp\Conditional Access.json'
                 SkipReportOnlyMode = $false
                 DeleteAllExistingPolicies = $false
@@ -2958,8 +2806,6 @@ function Import-DCConditionalAccessPolicyDesign {
 
         .EXAMPLE
             $Parameters = @{
-                ClientID = ''
-                ClientSecret = ''
                 FilePath = 'C:\Temp\Conditional Access.json'
                 SkipReportOnlyMode = $true
                 DeleteAllExistingPolicies = $true
@@ -2975,12 +2821,6 @@ function Import-DCConditionalAccessPolicyDesign {
 
     # Script parameters.
     param (
-        [parameter(Mandatory = $true)]
-        [string]$ClientID,
-
-        [parameter(Mandatory = $true)]
-        [string]$ClientSecret,
-
         [parameter(Mandatory = $true)]
         [string]$FilePath,
 
@@ -3004,7 +2844,7 @@ function Import-DCConditionalAccessPolicyDesign {
 
     # Authenticate to Microsoft Graph.
     Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
-    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+    $AccessToken = Invoke-DCEntraIDDeviceAuthFlow -ReturnAccessTokenInsteadOfRefreshToken
 
 
     # Show filter settings.
@@ -3076,16 +2916,6 @@ function New-DCConditionalAccessPolicyDesignReport {
         .DESCRIPTION
             Uses Microsoft Graph to fetch all Conditional Access policies and exports an Excel report, You can use the report as documentation, design document, or to get a nice overview of all your policies.
 
-            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
-            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
-
-            The following Microsoft Graph API permissions are required for this script to work:
-                Policy.ReadWrite.ConditionalAccess
-                Policy.Read.All
-                Directory.Read.All
-                Agreement.Read.All
-                Application.Read.All
-            
             The CMDlet also uses the PowerShell Excel Module for the export to Excel. You can install this module with:
             Install-Module ImportExcel -Force
 
@@ -3096,14 +2926,8 @@ function New-DCConditionalAccessPolicyDesignReport {
 
             The report is now easier to read.
             
-            Also, the user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Azure AD (Global Admin, Security Admin, Conditional Access Admin, etc).
+            The user running this CMDlet (the one who signs in when the authentication pops up) must have the appropriate permissions in Entra ID (Global Admin, Security Admin, Conditional Access Admin, etc).
             
-        .PARAMETER ClientID
-            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
-
-        .PARAMETER ClientSecret
-            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
-
         .INPUTS
             None
 
@@ -3116,27 +2940,12 @@ function New-DCConditionalAccessPolicyDesignReport {
             Blog:     https://danielchronlund.com/
         
         .EXAMPLE
-            $Parameters = @{
-                ClientID = ''
-                ClientSecret = ''
-            }
-
-            New-DCConditionalAccessPolicyDesignReport @Parameters
+            New-DCConditionalAccessPolicyDesignReport
     #>
 
 
 
     # ----- [Initialisations] -----
-
-    # Script parameters.
-    param (
-        [parameter(Mandatory = $true)]
-        [string]$ClientID,
-
-        [parameter(Mandatory = $true)]
-        [string]$ClientSecret
-    )
-
 
     # Set Error Action - Possible choices: Stop, SilentlyContinue
     $ErrorActionPreference = "Stop"
@@ -3156,7 +2965,7 @@ function New-DCConditionalAccessPolicyDesignReport {
 
     # Authenticate to Microsoft Graph.
     Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
-    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+    $AccessToken = Invoke-DCEntraIDDeviceAuthFlow -ReturnAccessTokenInsteadOfRefreshToken
 
 
     # Export all Conditional Access policies from Microsoft Graph as JSON.
@@ -3177,7 +2986,7 @@ function New-DCConditionalAccessPolicyDesignReport {
     # Fetch roles for id translation.
     Start-Sleep -Seconds 1
     $GraphUri = 'https://graph.microsoft.com/beta/directoryRoles'
-    $AzureADRoles = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
+    $EntraIDRoles = Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri $GraphUri
 
 
     # Format the result.
@@ -3276,7 +3085,7 @@ function New-DCConditionalAccessPolicyDesignReport {
         # includeRoles
         $Roles = foreach ($Role in $Policy.conditions.users.includeRoles) {
             if ($Role -ne 'None' -and $Role -ne 'All') {
-                $RoleToCheck = ($AzureADRoles | Where-Object { $_.roleTemplateId -eq $Role }).displayName
+                $RoleToCheck = ($EntraIDRoles | Where-Object { $_.roleTemplateId -eq $Role }).displayName
 
                 if ($RoleToCheck) {
                     $RoleToCheck
@@ -3296,7 +3105,7 @@ function New-DCConditionalAccessPolicyDesignReport {
         # excludeRoles
         $Roles = foreach ($Role in $Policy.conditions.users.excludeRoles) {
             if ($Role -ne 'None' -and $Role -ne 'All') {
-                $RoleToCheck = ($AzureADRoles | Where-Object { $_.roleTemplateId -eq $Role }).displayName
+                $RoleToCheck = ($EntraIDRoles | Where-Object { $_.roleTemplateId -eq $Role }).displayName
 
                 if ($RoleToCheck) {
                     $RoleToCheck
@@ -3458,18 +3267,9 @@ function New-DCConditionalAccessAssignmentReport {
         .DESCRIPTION
             Uses Microsoft Graph to fetch all Conditional Access policy assignments, both group- and user assignments (for now, it doesn't support role assignments). It exports them to Excel in a nicely formatted report for your filtering and analysing needs. If you include the -IncludeGroupMembers parameter, members of assigned groups will be included in the report as well (of course, this can produce very large reports if you have included large groups in your policy assignments).
 
-            The purpose of the report is to give you an overview of how Conditional Access policies are currently applied in an Azure AD tenant, and which users are targeted by which policies.
+            The purpose of the report is to give you an overview of how Conditional Access policies are currently applied in an Entra ID tenant, and which users are targeted by which policies.
 
             The report does not include information about the policies themselves. Use New-DCConditionalAccessPolicyDesignReport for that task.
-
-            Before running this CMDlet, you first need to register a new application in your Azure AD according to this article:
-            https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powershell-paging-support/
-
-            The following Microsoft Graph API permissions are required for this script to work:
-                Policy.Read.ConditionalAccess
-                Policy.Read.All
-                Directory.Read.All
-                Group.Read.All
 
             The CMDlet also uses the PowerShell Excel Module for the export to Excel. You can install this module with:
             Install-Module ImportExcel -Force
@@ -3483,12 +3283,6 @@ function New-DCConditionalAccessAssignmentReport {
 
             More information can be found here: https://danielchronlund.com/2020/10/20/export-your-conditional-access-policy-assignments-to-excel/
             
-        .PARAMETER ClientID
-            Client ID for the Azure AD application with Conditional Access Microsoft Graph permissions.
-
-        .PARAMETER ClientSecret
-            Client secret for the Azure AD application with Conditional Access Microsoft Graph permissions.
-
         .PARAMETER IncludeGroupMembers
             If you include the -IncludeGroupMembers parameter, members of assigned groups will be included in the report as well (of course, this can produce a very large report if you have included large groups in your policy assignments).
             
@@ -3504,10 +3298,10 @@ function New-DCConditionalAccessAssignmentReport {
             Blog:     https://danielchronlund.com/
         
         .EXAMPLE
-            $ClientID = ''
-            $ClientSecret = ''
-
-            New-DCConditionalAccessAssignmentReport -ClientID $ClientID -ClientSecret $ClientSecret -IncludeGroupMembers
+            New-DCConditionalAccessAssignmentReport
+        
+        .EXAMPLE
+            New-DCConditionalAccessAssignmentReport -IncludeGroupMembers
     #>
 
 
@@ -3516,12 +3310,6 @@ function New-DCConditionalAccessAssignmentReport {
 
     # Script parameters.
     param (
-        [parameter(Mandatory = $true)]
-        [string]$ClientID,
-
-        [parameter(Mandatory = $true)]
-        [string]$ClientSecret,
-
         [parameter(Mandatory = $false)]
         [switch]$IncludeGroupMembers
     )
@@ -3545,7 +3333,7 @@ function New-DCConditionalAccessAssignmentReport {
 
     # Connect to Microsoft Graph.
     Write-Verbose -Verbose -Message "Connecting to Microsoft Graph..."
-    $AccessToken = Connect-DCMsGraphAsDelegated -ClientID $ClientID -ClientSecret $ClientSecret
+    $AccessToken = Invoke-DCEntraIDDeviceAuthFlow -ReturnAccessTokenInsteadOfRefreshToken
 
 
     # Get all Conditional Access policies.
@@ -3685,7 +3473,7 @@ function New-DCConditionalAccessAssignmentReport {
     }
 
 
-    # Fetch include group members from Azure AD:
+    # Fetch include group members from Entra ID:
     $IncludeGroupMembersFromAd = @()
     if ($IncludeGroupMembers) {
         $IncludeGroupMembersFromAd = foreach ($Group in ($CAPolicies.includeGroupsId | Select-Object -Unique)) {
@@ -3705,7 +3493,7 @@ function New-DCConditionalAccessAssignmentReport {
     }
 
 
-    # Fetch exclude group members from Azure AD:
+    # Fetch exclude group members from Entra ID:
     $ExcludeGroupMembersFromAd = @()
     if ($IncludeGroupMembers) {
         $ExcludeGroupMembersFromAd = foreach ($Group in ($CAPolicies.excludeGroupsId | Select-Object -Unique)) {

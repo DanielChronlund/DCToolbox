@@ -8,7 +8,7 @@ Author: Daniel Chronlund
 
 <h2>Introduction</h2>
 
-This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Azure AD management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
+This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Entra ID management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
 
 ---------------------------------------------------
 
@@ -56,9 +56,9 @@ Connect to Microsoft Graph with application credentials.
 Run a Microsoft Graph query.
 
 
-<h3>Enable-DCAzureADPIMRole</h3>
+<h3>Enable-DCEntraIDPIMRole</h3>
 
-Activate one or more Azure AD Privileged Identity Management (PIM) role with PowerShell.
+Activate one or more Entra ID Privileged Identity Management (PIM) role with PowerShell.
 
 
 <h3>Get-DCPublicIp</h3>
@@ -71,29 +71,29 @@ Get current public IP address information. You can use the -UseTorHttpProxy to r
 Start a Tor network HTTP proxy that can be used for anonymization of HTTP traffic in PowerShell. Requires proxy support in the PowerShell CMDlet you want to anonymise. Many of the tools included in DCToolbox supports this.
 
 
-<h3>Test-DCAzureAdUserExistence</h3>
+<h3>Test-DCEntraIDUserExistence</h3>
 
-Test if an account exists in Azure AD for specified email addresses.
-
-
-<h3>Test-DCAzureAdCommonAdmins</h3>
-
-Test if common and easily guessed admin usernames exist for specified Azure AD domains.
+Test if an account exists in Entra ID for specified email addresses.
 
 
-<h3>Get-DCAzureADUsersAndGroupsAsGuest</h3>
+<h3>Test-DCEntraIDCommonAdmins</h3>
 
-Lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Azure AD is set to the default configuration.
+Test if common and easily guessed admin usernames exist for specified Entra ID domains.
+
+
+<h3>Get-DCEntraIDUsersAndGroupsAsGuest</h3>
+
+Lets a guest user enumerate users and security groups/teams when 'Guest user access restrictions' in Entra ID is set to the default configuration.
 
 
 <h3>Invoke-M365DataExfiltration</h3>
 
-Uses an Azure AD app registration to download all files from all M365 groups (Teams) document libraries in a tenant.
+Uses an Entra ID app registration to download all files from all M365 groups (Teams) document libraries in a tenant.
 
 
 <h3>Invoke-M365DataWiper</h3>
 
-Uses an Azure AD app registration to wipe all files from all M365 groups (Teams) document libraries in a tenant.
+Uses an Entra ID app registration to wipe all files from all M365 groups (Teams) document libraries in a tenant.
 
 
 <h3>Export-DCConditionalAccessPolicyDesign</h3>
