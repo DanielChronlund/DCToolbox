@@ -2661,6 +2661,7 @@ function Invoke-DCM365DataWiper {
 }
 
 
+
 function Invoke-DCHuntingQuery {
     <#
         .SYNOPSIS
@@ -2790,7 +2791,13 @@ function Invoke-DCHuntingQuery {
     }
 
     $Results | Select-Object -Property $Properties
+
+    if (!($Results)) {
+        Write-host '-- empty result --'
+        Write-host ''
+    }
 }
+
 
 
 function New-DCEntraIDStaleAccountReport {
