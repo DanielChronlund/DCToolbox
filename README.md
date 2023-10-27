@@ -67,6 +67,8 @@ You can filter on a name prefix with -PrefixFilter.
 	    
 	Add-DCConditionalAccessPoliciesBreakGlassGroup -PrefixFilter 'GLOBAL - ' -ExcludeGroupName 'Excluded from Conditional Access'
 
+---
+
 ### Connect-DCMsGraphAsApplication
 
 **Synopsis:**
@@ -99,6 +101,8 @@ https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powe
 	    
 	$AccessToken = Connect-DCMsGraphAsApplication -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/' -TenantName 'example.onmicrosoft.com'
 
+---
+
 ### Connect-DCMsGraphAsUser
 
 **Synopsis:**
@@ -122,6 +126,8 @@ Connect to Microsoft Graph with the Microsoft Graph PowerShell module as a user 
 	    
 	Connect-DCMsGraphAsUser -Scopes 'Policy.ReadWrite.ConditionalAccess', 'Policy.Read.All', 'Directory.Read.All' -Verbose
 
+---
+
 ### Copy-DCExample
 
 **Synopsis:**
@@ -138,6 +144,8 @@ Copy-DCExample
 
 **Examples:**
 
+
+---
 
 ### Deploy-DCConditionalAccessBaselinePoC
 
@@ -209,6 +217,8 @@ You must be a Global Admin to run this command (because of the admin consent req
 	    
 	Deploy-DCConditionalAccessBaselinePoC -SkipReportOnlyMode # WARNING: USE WITH CAUTION!
 
+---
+
 ### Enable-DCEntraIDPIMRole
 
 **Synopsis:**
@@ -217,7 +227,7 @@ Activate an Entra ID Privileged Identity Management (PIM) role with PowerShell.
 
 **Details:**
 
-Uses the Entra ID module and the MSAL module to activate a user selected Entra ID role in Entra ID Privileged Identity Management (PIM) with PowerShell. It uses MSAL to force an MFA prompt, even if not required. This is needed because PIM role activation often requires MFA approval.
+Uses the Graph PowerShell module to activate a user selected Entra ID role in Entra ID Privileged Identity Management (PIM).
 
 During activation, the user will be prompted to specify a reason for the activation.
 
@@ -245,6 +255,8 @@ During activation, the user will be prompted to specify a reason for the activat
 	Enable-DCEntraIDPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -UseMaximumTimeAllowed
 	    
 	Enable-DCEntraIDPIMRole -RolesToActivate 'Exchange Administrator', 'Security Reader' -Reason 'Performing some Exchange security configuration.' -UseMaximumTimeAllowed
+
+---
 
 ### Export-DCConditionalAccessPolicyDesign
 
@@ -284,6 +296,8 @@ The user running this CMDlet (the one who signs in when the authentication pops 
 	}
 	Export-DCConditionalAccessPolicyDesign @Parameters
 
+---
+
 ### Get-DCConditionalAccessPolicies
 
 **Synopsis:**
@@ -320,6 +334,8 @@ You can filter on a name prefix with -PrefixFilter.
 	Get-DCConditionalAccessPolicies
 	    
 	Get-DCConditionalAccessPolicies -PrefixFilter 'GLOBAL - '
+
+---
 
 ### Get-DCEntraIDUsersAndGroupsAsGuest
 
@@ -361,6 +377,8 @@ Finally, the script will output one array with found users, and one array with f
 	    
 	Get-DCEntraIDUsersAndGroupsAsGuest -TenantId '00000000-0000-0000-0000-000000000000' -AccountId 'user@example.com' -InterestingUsers 'customer1@customer.com', 'customer2@customer.com'
 
+---
+
 ### Get-DCHelp
 
 **Synopsis:**
@@ -377,6 +395,8 @@ Get-DCHelp
 
 **Examples:**
 
+
+---
 
 ### Get-DCNamedLocations
 
@@ -409,6 +429,8 @@ You can filter on a name prefix with -PrefixFilter.
 	# List all countries.
 	(Get-DCNamedLocations).countriesAndRegions | Select-Object -Unique | Sort-Object
 
+---
+
 ### Get-DCPublicIp
 
 **Synopsis:**
@@ -433,6 +455,8 @@ Get the current public IP address and related information. The ipinfo.io API is 
 	(Get-DCPublicIp).ip
 	    
 	Write-Host "$((Get-DCPublicIp).city) $((Get-DCPublicIp).country)"
+
+---
 
 ### Import-DCConditionalAccessPolicyDesign
 
@@ -500,6 +524,8 @@ As a best practice you should always have an Entra ID security group with break 
 	    PrefixFilter = 'GLOBAL - '
 	}
 
+---
+
 ### Invoke-DCEntraIDDeviceAuthFlow
 
 **Synopsis:**
@@ -540,6 +566,51 @@ A refresh token fetched by this tool can be replayed on another device.
 	Invoke-DCEntraIDDeviceAuthFlow -ShowTokenDetails
 	    
 	Invoke-DCEntraIDDeviceAuthFlow -ClientID '' -TenantID ''
+
+---
+
+### Invoke-DCHuntingQuery
+
+**Synopsis:**
+
+Connect to Microsoft Graph with the Microsoft Graph PowerShell module and run a KQL hunting query in Microsoft 365 Defender.
+
+**Details:**
+
+Connect to Microsoft Graph with the Microsoft Graph PowerShell module and run a KQL hunting query in Microsoft 365 Defender.
+
+**Parameters:**
+
+	-Query
+	Description:	The KQL query you want to run in Microsoft 365 Defender.
+	Required:		true
+	
+	-IncludeKQLQueryAtTop
+	Description:	The KQL query you want to run in Microsoft 365 Defender.
+	Required:		false
+	
+	-IncludeRaw
+	Description:	Include the raw formated and escaped KQL query sent to Microsoft Graph.
+	Required:		false
+	
+**Examples:**
+
+	Invoke-DCHuntingQuery -Query $Query    
+	$Query = @'
+	DeviceEvents
+	| where ActionType startswith "Asr"
+	| summarize count() by ActionType
+	| order by count_
+	'@
+	Invoke-DCHuntingQuery -Query $Query -IncludeKQLQueryAtTop    
+	$Query = @'
+	DeviceEvents
+	| where ActionType startswith "Asr"
+	| summarize count() by ActionType
+	| order by count_
+	'@
+
+---
 
 ### Invoke-DCM365DataExfiltration
 
@@ -597,6 +668,8 @@ You can run the script with -WhatIf to skip the actual downloads. It will still 
 	    
 	Invoke-M365DataExfiltration -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/' -TenantName 'example.onmicrosoft.com' -WhatIf
 
+---
+
 ### Invoke-DCM365DataWiper
 
 **Synopsis:**
@@ -651,6 +724,8 @@ You can run the script with -WhatIf to skip the actual deletion. It will still s
 	    
 	Invoke-DCM365DataWiper -ClientID '8a85d2cf-17c7-4ecd-a4ef-05b9a81a9bba' -ClientSecret 'j[BQNSi29Wj4od92ritl_DHJvl1sG.Y/' -TenantName 'example.onmicrosoft.com' -WhatIf
 
+---
+
 ### Invoke-DCMsGraphQuery
 
 **Synopsis:**
@@ -686,6 +761,8 @@ https://danielchronlund.com/2018/11/19/fetch-data-from-microsoft-graph-with-powe
 
 	    
 	Invoke-DCMsGraphQuery -AccessToken $AccessToken -GraphMethod 'GET' -GraphUri 'https://graph.microsoft.com/v1.0/users/'
+
+---
 
 ### New-DCConditionalAccessAssignmentReport
 
@@ -726,6 +803,8 @@ More information can be found here: https://danielchronlund.com/2020/10/20/expor
 	    
 	New-DCConditionalAccessAssignmentReport -IncludeGroupMembers
 
+---
+
 ### New-DCConditionalAccessPolicyDesignReport
 
 **Synopsis:**
@@ -754,6 +833,8 @@ The user running this CMDlet (the one who signs in when the authentication pops 
 
 	    
 	New-DCConditionalAccessPolicyDesignReport
+
+---
 
 ### New-DCEntraIDStaleAccountReport
 
@@ -822,6 +903,8 @@ Also, the user running this CMDlet (the one who signs in when the authentication
 	    LastSeenDaysAgo = 30
 	}
 
+---
+
 ### Remove-DCConditionalAccessPolicies
 
 **Synopsis:**
@@ -848,6 +931,8 @@ This CMDlet will prompt you for confirmation multiple times before deleting poli
 	Remove-DCConditionalAccessPolicies
 	    
 	Remove-DCConditionalAccessPolicies -PrefixFilter 'TEST - '
+
+---
 
 ### Rename-DCConditionalAccessPolicies
 
@@ -879,6 +964,8 @@ If you dontt specify a PrefixFilter, ALL policies will be modified to include th
 	Rename-DCConditionalAccessPolicies -PrefixFilter 'GLOBAL - ' -AddCustomPrefix 'REPORT - GLOBAL - '
 	    
 	Rename-DCConditionalAccessPolicies -AddCustomPrefix 'OLD - '
+
+---
 
 ### Set-DCConditionalAccessPoliciesPilotMode
 
@@ -919,6 +1006,8 @@ You must filter the toggle with a prefix filter to only modify specific policies
 	    
 	Set-DCConditionalAccessPoliciesPilotMode -PrefixFilter 'GLOBAL - ' -PilotGroupName 'Conditional Access Pilot' -EnableProduction
 
+---
+
 ### Set-DCConditionalAccessPoliciesReportOnlyMode
 
 **Synopsis:**
@@ -953,6 +1042,8 @@ You must filter the toggle with a prefix filter to only modify specific policies
 	Set-DCConditionalAccessPoliciesReportOnlyMode -PrefixFilter 'GLOBAL - ' -SetToReportOnly
 	    
 	Set-DCConditionalAccessPoliciesReportOnlyMode -PrefixFilter 'GLOBAL - ' -SetToEnabled
+
+---
 
 ### Start-DCTorHttpProxy
 
@@ -991,6 +1082,8 @@ https://www.torproject.org/download/
 	    
 	Start-DCTorHttpProxy
 
+---
+
 ### Test-DCEntraIDCommonAdmins
 
 **Synopsis:**
@@ -1017,6 +1110,8 @@ Do not use this script in an unethical or unlawful way. Use it to find weak spot
 
 	    
 	Test-DCEntraIDCommonAdmins -UseTorHttpProxy -Domains "example.com", "example2.onmicrosoft.com"
+
+---
 
 ### Test-DCEntraIDUserExistence
 
@@ -1047,9 +1142,8 @@ Do not use this script in an unethical or unlawful way. Use it to find weak spot
 	    
 	Test-DCEntraIDUserExistence -UseTorHttpProxy -Users "user1@example.com", "user2@example.com", "user3@example.onmicrosoft.com"
 
+---
 
-
----------------------------------------------------
 
 Please follow me on my blog https://danielchronlund.com, on LinkedIn and on X!
 
