@@ -3413,7 +3413,7 @@ function Rename-DCConditionalAccessPolicies {
 
                 # Rename policy:
                 $params = @{
-                    DisplayName = "$($Policy.DisplayName -replace $PrefixFilter, $AddCustomPrefix))"
+                    DisplayName = "$($Policy.DisplayName -replace $PrefixFilter, $AddCustomPrefix)"
                 }
                 
                 Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $Policy.Id -BodyParameter $params
