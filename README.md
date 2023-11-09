@@ -69,6 +69,27 @@ You can filter on a name prefix with -PrefixFilter.
 
 ---
 
+### Confirm-DCPowerShellVersion
+
+**Synopsis:**
+
+Check that a supported PowerShell version is running.
+
+**Details:**
+
+
+
+**Parameters:**
+
+**Examples:**
+
+	    
+	Confirm-DCPowerShellVersion
+	    
+	Confirm-DCPowerShellVersion -Verbose
+
+---
+
 ### Connect-DCMsGraphAsApplication
 
 **Synopsis:**
@@ -526,6 +547,48 @@ As a best practice you should always have an Entra ID security group with break 
 
 ---
 
+### Install-DCMicrosoftGraphPowerShellModule
+
+**Synopsis:**
+
+Check, install, and update the Microsoft Graph PowerShell module.
+
+**Details:**
+
+
+
+**Parameters:**
+
+**Examples:**
+
+	    
+	Install-DCMicrosoftGraphPowerShellModule
+	    
+	Install-DCMicrosoftGraphPowerShellModule -Verbose
+
+---
+
+### Install-DCToolbox
+
+**Synopsis:**
+
+Check, install, and update the DCToolbox PowerShell module.
+
+**Details:**
+
+
+
+**Parameters:**
+
+**Examples:**
+
+	    
+	Install-DCToolbox
+	    
+	Install-DCToolbox -Verbose
+
+---
+
 ### Invoke-DCEntraIDDeviceAuthFlow
 
 **Synopsis:**
@@ -586,7 +649,7 @@ Connect to Microsoft Graph with the Microsoft Graph PowerShell module and run a 
 	Required:		true
 	
 	-IncludeKQLQueryAtTop
-	Description:	The KQL query you want to run in Microsoft 365 Defender.
+	Description:	
 	Required:		false
 	
 	-IncludeRaw
@@ -833,6 +896,39 @@ The user running this CMDlet (the one who signs in when the authentication pops 
 
 	    
 	New-DCConditionalAccessPolicyDesignReport
+
+---
+
+### New-DCEntraIDAppPermissionsReport
+
+**Synopsis:**
+
+Generate a report containing all Entra ID Enterprise Apps and App Registrations with API permissions (application permissions only) in the tenant.
+
+**Details:**
+
+Uses Microsoft Graph to fetch all Entra ID Enterprise Apps and App Registrations with API permissions (application permissions only) and generate a report. The report includes app names, API permissions, secrets/certificates, and app owners.
+
+The purpose is to find vulnerable applications and API permissions in Entra ID.
+
+Applications marked with 'AppHostedInExternalTenant = False' also has a corresponding App Registration in this tenant. This means that App Registration Owners has the same permissions as the application.
+
+**Parameters:**
+
+**Examples:**
+
+	    
+	# Get all API application permissions assigned to applications in tenant.
+	New-DCEntraIDAppPermissionsReport
+	    
+	# Look for sensitive permissions.
+	$Result = New-DCEntraIDAppPermissionsReport
+	$Result | where RoleName -in 'RoleManagement.ReadWrite.Directory', 'Application.ReadWrite.All', 'AppRoleAssignment.ReadWrite.All'
+	    
+	# Export report to Excel for further filtering and analysis.
+	$Result = New-DCEntraIDAppPermissionsReport
+	$Path = "$((Get-Location).Path)\Entra ID Enterprise Apps Report $(Get-Date -Format 'yyyy-MM-dd').xlsx"
+	$Result | Export-Excel -Path $Path -WorksheetName "Enterprise Apps" -BoldTopRow -FreezeTopRow -AutoFilter -AutoSize -ClearSheet -Show
 
 ---
 
