@@ -589,6 +589,96 @@ Check, install, and update the DCToolbox PowerShell module.
 
 ---
 
+### Invoke-DCConditionalAccessSimulation
+
+**Synopsis:**
+
+Simulates the Entra ID Conditional Access evaluation process of a specific scenario.
+
+**Details:**
+
+Uses Microsoft Graph to fetch all Entra ID Conditional Access policies. It then evaluates which policies that would have been applied if this was a real sign-in to Entra ID. Use the different parameters available to specify the conditions. Details are included under each parameter.
+
+**Parameters:**
+
+	-JSONFile
+	Description:	Only use this parameter if you want to analyze a local JSON file export of Conditional Access polices, instead of a live tenant. Point it to the local JSON file. Export JSON with Export-DCConditionalAccessPolicyDesign (or any other tool exporting Conditional Access policies from Microsoft Graph to JSON), like 'Entra Exporter'.
+	Required:		false
+	
+	-UserPrincipalName
+	Description:	The UPN of the simulated Entra ID user signing in. Can also be set to 'All' for all users, or 'GuestsOrExternalUsers' to test external user sign-in scenarios. Example: 'user@example.com'. Default: 'All'.
+	Required:		false
+	
+	-ApplicationDisplayName
+	Description:	The display name of the application targeted by Conditional Access policies (same display name as in Entra ID Portal when creating Conditional Access policies). Example 1: 'Office 365'. Example 2: 'Microsoft Admin Portals'. Default: 'All'.
+	Required:		false
+	
+	-UserAction
+	Description:	Under construction...
+	Required:		false
+	
+	-ClientApp
+	Description:	The client app type used during sign-in. Possible values: 'browser', 'mobileAppsAndDesktopClients', 'exchangeActiveSync', 'easSupported', 'other'. Default: 'browser'
+	Required:		false
+	
+	-TrustedIPAddress
+	Description:	Specify if the simulated sign-in comes from a trusted IP address (marked as trusted in Named Locations)? $true or $false? Don't specify the actual IP address. That is not really that important when simulating policy evaluation. Default: $false
+	Required:		false
+	
+	-Country
+	Description:	The country code for the sign-in country of origin based on IP address geo data. By default, this script tries to resolve the IP address of the current PowerShell session.
+	Required:		false
+	
+	-Platform
+	Description:	Specify the OS platform of the client signing in. Possible values: 'all', 'android', 'iOS', 'windows', 'windowsPhone', 'macOS', 'linux', 'spaceRocket'. Default: 'windows'
+	Required:		false
+	
+	-SignInRiskLevel
+	Description:	Specify the Entra ID Protection sign-in risk level. Possible values: 'none', 'low', 'medium', 'high'. Default: 'none'
+	Required:		false
+	
+	-UserRiskLevel
+	Description:	Specify the Entra ID Protection user risk level. Possible values: 'none', 'low', 'medium', 'high'. Default: 'none'
+	Required:		false
+	
+	-SummarizedOutput
+	Description:	By default, this script returns PowerShell objects representing all applied Conditional Access policies only. This can be used for piping to other tools, etc. But sometimes you also want a simple answer of what would happen during the simulated policy evaluation. Specify this parameter to add a summarized and simplified output (outputs to 'Informational' stream with Write-Host).
+	Required:		false
+	
+	-VerbosePolicyEvaluation
+	Description:	Include detailed verbose policy evaluation info. Use for troubleshooting and debugging.
+	Required:		false
+	
+	-IncludeNonMatchingPolicies
+	Description:	Also, include all policies that did not match, and therefor was not applied. This can be useful to produce different kinds of Conditional Access reports.
+	Required:		false
+	
+**Examples:**
+
+	    
+	# Run basic evaluation with default settings.
+	Invoke-DCConditionalAccessSimulation | Format-List
+	Invoke-DCConditionalAccessSimulation @Parameters    
+	# Run evaluation with custom settings.
+	$Parameters = @{
+	    UserPrincipalName = 'user@example.com'
+	    ApplicationDisplayName = 'Office 365'
+	    ClientApp = 'mobileAppsAndDesktopClients'
+	    TrustedIPAddress = $true
+	    Country = 'US'
+	    Platform = 'windows'
+	    SignInRiskLevel = 'medium'
+	    UserRiskLevel = 'high'
+	    SummarizedOutput = $true
+	    VerbosePolicyEvaluation = $false
+	    IncludeNonMatchingPolicies = $false
+	}
+	    
+	# Run basic evaluation offline against a JSON of Conditional Access policies.
+	Invoke-DCConditionalAccessSimulation -JSONFile 'Conditional Access Backup.json' | Format-List
+
+---
+
 ### Invoke-DCEntraIDDeviceAuthFlow
 
 **Synopsis:**
@@ -636,16 +726,16 @@ A refresh token fetched by this tool can be replayed on another device.
 
 **Synopsis:**
 
-Connect to Microsoft Graph with the Microsoft Graph PowerShell module and run a KQL hunting query in Microsoft 365 Defender.
+Connect to Microsoft Graph with the Microsoft Graph PowerShell module and run a KQL hunting query in Microsoft Defender XDR.
 
 **Details:**
 
-Connect to Microsoft Graph with the Microsoft Graph PowerShell module and run a KQL hunting query in Microsoft 365 Defender.
+Connect to Microsoft Graph with the Microsoft Graph PowerShell module and run a KQL hunting query in Microsoft Defender XDR.
 
 **Parameters:**
 
 	-Query
-	Description:	The KQL query you want to run in Microsoft 365 Defender.
+	Description:	The KQL query you want to run in Microsoft Defender XDR.
 	Required:		true
 	
 	-IncludeKQLQueryAtTop
