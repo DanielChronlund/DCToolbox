@@ -1062,7 +1062,7 @@ function Install-DCToolbox {
         Write-Verbose -Message "DCToolbox $ModuleVersion found!"
     }
 
-    Remove-Module DCToolbox -Verbose:$false -ErrorAction SilentlyContinue | Out-Null
+    Import-Module DCToolbox -Force -Verbose:$false -ErrorAction SilentlyContinue | Out-Null
 }
 
 
@@ -5274,7 +5274,9 @@ function Invoke-DCConditionalAccessSimulation {
                 }
             }
 
-            if ($TrustedLocation) {
+            $TrustedLocation = $TrustedLocation | Where-Object { $_ -eq $true }
+
+            if ($TrustedLocation -and $ConditionsToSimulate.TrustedIPAddress) {
                 if ($VerbosePolicyEvaluation) { Write-Verbose -Verbose -Message 'IncludeLocationsIPAddress: APPLIED' }
             } else {
                 if ($JSONFile) {
@@ -5301,7 +5303,7 @@ function Invoke-DCConditionalAccessSimulation {
                     (Get-MgIdentityConditionalAccessNamedLocation | where id -eq $Location).AdditionalProperties.countriesAndRegions
                 }
             }
-    
+
             if ($TrustedLocation -contains $ConditionsToSimulate.Country) {
                 if ($VerbosePolicyEvaluation) { Write-Verbose -Verbose -Message 'IncludeLocationsCountry: APPLIED' }
             } else {
