@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '2.0.18'
+    $DCToolboxVersion = '2.0.19'
 
 
     $HelpText = @"
@@ -17,11 +17,11 @@ A PowerShell toolbox for Microsoft 365 security fans.
 Author: Daniel Chronlund
 Version: $DCToolboxVersion
 
-This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Entra ID management, Conditional Access, zero trust strategies, attack and defense scenarios, etc.
+This PowerShell module contains a collection of tools for Microsoft 365 security tasks, Microsoft Graph functions, Entra ID management, Conditional Access, zero trust strategies, attack and defense scenarios, and more.
 
 The home of this module: https://github.com/DanielChronlund/DCToolbox
 
-Please follow me on my blog https://danielchronlund.com, on LinkedIn and on Twitter!
+Please follow me on my blog https://danielchronlund.com, on LinkedIn and on X!
 
 @DanielChronlund
 
@@ -32,6 +32,10 @@ To get started, explore and copy script examples to your clipboard with:
 
     Write-Host -ForegroundColor "Yellow" $HelpText
     Write-Host -ForegroundColor "Cyan" "Copy-DCExample"
+    Write-Host ""
+    Write-Host -ForegroundColor "Yellow" "List all available tools:"
+    Write-Host ""
+    Write-Host -ForegroundColor "Magenta" "Get-Command -Module DCToolbox"
     Write-Host ""
 }
 
@@ -1100,6 +1104,7 @@ function Confirm-DCPowerShellVersion {
         Write-Error -Message "Please upgrade to PowerShell version 7 before running this command: https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.3"
 
         return
+        exit
     } else {
         Write-Verbose -Message "PowerShell $($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor) found!"
     }
@@ -1142,7 +1147,7 @@ function Install-DCMicrosoftGraphPowerShellModule {
     if (!($ModuleVersion)) {
         Write-Verbose -Message "Not found! Installing the Graph PowerShell module..."
         Install-Module Microsoft.Graph -Scope CurrentUser -Force -Verbose:$false
-    } elseif (($ModuleVersion).Version.Major -lt 2 -and ($ModuleVersion).Version.Minor -lt 8) {
+    } elseif (($ModuleVersion).Version.Major -le 2 -and ($ModuleVersion).Version.Minor -lt 11) {
         Write-Verbose -Message "Found version $(($ModuleVersion).Version.Major).$(($ModuleVersion).Version.Minor). Upgrading..."
         Install-Module Microsoft.Graph -Scope CurrentUser -Force -Verbose:$false
     } else {
