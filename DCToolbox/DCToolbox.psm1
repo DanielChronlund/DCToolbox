@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '2.0.19'
+    $DCToolboxVersion = '2.0.20'
 
 
     $HelpText = @"
@@ -1066,6 +1066,8 @@ function Install-DCToolbox {
         Write-Verbose -Message "DCToolbox $ModuleVersion found!"
     }
 
+    Remove-Module DCToolbox
+
     Import-Module DCToolbox -Force -Verbose:$false -ErrorAction SilentlyContinue | Out-Null
 }
 
@@ -1142,17 +1144,24 @@ function Install-DCMicrosoftGraphPowerShellModule {
 
     Write-Verbose -Message "Looking for the Graph PowerShell module..."
 
-    $ModuleVersion = Get-Module -ListAvailable -Name Microsoft.Graph.Authentication -Verbose:$false | Select-Object -First 1
-    
+    $ModuleVersion = [string](Get-Module -ListAvailable -Name Microsoft.Graph.Authentication -Verbose:$false | Sort-Object Version -Descending | Select-Object -First 1).Version
+    $LatestVersion = (Find-Module Microsoft.Graph.Authentication -Verbose:$false | Select-Object -First 1).Version
+
     if (!($ModuleVersion)) {
-        Write-Verbose -Message "Not found! Installing the Graph PowerShell module..."
+        Write-Verbose -Message "Not found! Installing Graph PowerShell module $LatestVersion..."
         Install-Module Microsoft.Graph -Scope CurrentUser -Force -Verbose:$false
-    } elseif (($ModuleVersion).Version.Major -le 2 -and ($ModuleVersion).Version.Minor -lt 11) {
-        Write-Verbose -Message "Found version $(($ModuleVersion).Version.Major).$(($ModuleVersion).Version.Minor). Upgrading..."
+        Write-Verbose -Message "Done!"
+    } elseif ($ModuleVersion -ne $LatestVersion) {
+        Write-Verbose -Message "Found Graph PowerShell module $ModuleVersion. Upgrading to $LatestVersion..."
         Install-Module Microsoft.Graph -Scope CurrentUser -Force -Verbose:$false
+        Write-Verbose -Message "Done!"
     } else {
-        Write-Verbose -Message "Graph PowerShell $(($ModuleVersion).Version.Major).$(($ModuleVersion).Version.Minor) found!"
+        Write-Verbose -Message "Graph PowerShell module $ModuleVersion found!"
     }
+
+    Remove-Module Microsoft.Graph*
+
+    Import-Module Microsoft.Graph.Authentication -Force -Verbose:$false -ErrorAction SilentlyContinue | Out-Null
 }
 
 
