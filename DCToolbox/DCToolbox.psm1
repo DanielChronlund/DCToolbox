@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '2.0.20'
+    $DCToolboxVersion = '2.0.21'
 
 
     $HelpText = @"
@@ -1066,7 +1066,7 @@ function Install-DCToolbox {
         Write-Verbose -Message "DCToolbox $ModuleVersion found!"
     }
 
-    Remove-Module DCToolbox
+    Remove-Module DCToolbox -Force -Verbose:$false
 
     Import-Module DCToolbox -Force -Verbose:$false -ErrorAction SilentlyContinue | Out-Null
 }
@@ -1159,7 +1159,7 @@ function Install-DCMicrosoftGraphPowerShellModule {
         Write-Verbose -Message "Graph PowerShell module $ModuleVersion found!"
     }
 
-    Remove-Module Microsoft.Graph*
+    Remove-Module Microsoft.Graph* -Force -Verbose:$false
 
     Import-Module Microsoft.Graph.Authentication -Force -Verbose:$false -ErrorAction SilentlyContinue | Out-Null
 }
@@ -3313,7 +3313,7 @@ function Get-DCConditionalAccessPolicies {
     
 
     # Get all existing policies.
-    $ExistingPolicies = Get-MgIdentityConditionalAccessPolicy
+    $ExistingPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies').value | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 
     Write-Verbose -Verbose -Message "Fetching Conditional Access policies..."
 
@@ -3478,7 +3478,7 @@ function Remove-DCConditionalAccessPolicies {
 
 
     # Delete all existing policies.
-    $ExistingPolicies = Get-MgIdentityConditionalAccessPolicy
+    $ExistingPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies').value | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 
 
     foreach ($Policy in $ExistingPolicies) {
@@ -3543,8 +3543,8 @@ function Rename-DCConditionalAccessPolicies {
         [parameter(Mandatory = $false)]
         [string]$PrefixFilter = '',
 
-        [parameter(Mandatory = $true)]
-        [string]$AddCustomPrefix
+        [parameter(Mandatory = $false)]
+        [string]$AddCustomPrefix = ''
     )
 
 
@@ -3596,7 +3596,7 @@ function Rename-DCConditionalAccessPolicies {
 
     # Modify all existing policies.
     Write-Verbose -Verbose -Message "Looking for Conditional Access policies to rename..."
-    $ExistingPolicies = Get-MgIdentityConditionalAccessPolicy
+    $ExistingPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies').value | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 
 
     foreach ($Policy in $ExistingPolicies) {
@@ -3884,7 +3884,6 @@ function Deploy-DCConditionalAccessBaselinePoC {
     }
     
 
-
     # Step 2: Manage Conditional Access exclude group for break glass accounts.
 
     # Check for existing group.
@@ -3983,7 +3982,7 @@ function Deploy-DCConditionalAccessBaselinePoC {
     # Step 6: Manage Terms of Use.
 
     # Check for existing Terms of Use.
-    if ($SkipPolicies -eq 'GLOBAL - GRANT - Terms of Use') {
+    if ($SkipPolicies -eq 'GLOBAL - 204 - GRANT - Terms of Use') {
         Write-Verbose -Verbose -Message "Skipping Terms of Use because -SkipPolicies was set!"
     } else {
         Write-Verbose -Verbose -Message "Checking for existing Terms of Use '$TermsOfUseName'..."
@@ -4030,15 +4029,15 @@ function Deploy-DCConditionalAccessBaselinePoC {
     # Step 7: Download Conditional Access baseline in JSON format from https://danielchronlund.com.
 
     Write-Verbose -Verbose -Message "Downloading Conditional Access baseline template from https://danielchronlund.com..."
-    Invoke-WebRequest 'https://danielchronlundcloudtechblog.files.wordpress.com/2023/09/conditional-access-design-version-13-poc.zip' -OutFile 'conditional-access-design-version-13-poc.zip'
+    Invoke-WebRequest 'https://danielchronlundcloudtechblog.files.wordpress.com/2024/03/conditional-access-design-version-14-poc.zip' -OutFile 'conditional-access-design-version-14-poc.zip'
 
     Write-Verbose -Verbose -Message "Unziping template..."
-    Expand-Archive -LiteralPath 'conditional-access-design-version-13-poc.zip' -DestinationPath . -Force
+    Expand-Archive -LiteralPath 'conditional-access-design-version-14-poc.zip' -DestinationPath . -Force
 
 
     # Step 8: Modify JSON content.
 
-    $JSONContent = Get-Content -Raw -Path 'Conditional Access Design version 13 PoC.json'
+    $JSONContent = Get-Content -Raw -Path 'conditional-access-design-version-14.json'
 
     # Report-only mode.
     if (!($SkipReportOnlyMode)) {
@@ -4048,7 +4047,7 @@ function Deploy-DCConditionalAccessBaselinePoC {
     }
 
     $JSONContent = $JSONContent -replace 'GLOBAL - ', "$AddCustomPrefix`GLOBAL - "
-    $JSONContent = $JSONContent -replace 'CUSTOM - ', "$AddCustomPrefix`CUSTOM - "
+    $JSONContent = $JSONContent -replace 'OVERRIDE - ', "$AddCustomPrefix`OVERRIDE - "
     $JSONContent = $JSONContent -replace 'REPLACE WITH EXCLUDE GROUP ID', $ExistingExcludeGroup.Id
     $JSONContent = $JSONContent -replace 'REPLACE WITH SERVICE ACCOUNT GROUP ID', $ExistingServiceAccountGroup.Id
     $JSONContent = $JSONContent -replace 'REPLACE WITH SERVICE ACCOUNT TRUSTED NAMED LOCATION ID', $ExistingCorpNetworkNamedLocation.Id
@@ -4071,7 +4070,7 @@ function Deploy-DCConditionalAccessBaselinePoC {
 
             try {
                 # Create new policies.
-                Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies' -Body ($Policy | ConvertTo-Json -Depth 10) | Out-Null
+                Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies' -Body ($Policy | ConvertTo-Json -Depth 10) | Out-Null
             }
             catch {
                 Write-Error -Message $_.Exception.Message -ErrorAction Continue
@@ -4084,8 +4083,8 @@ function Deploy-DCConditionalAccessBaselinePoC {
 
     Write-Verbose -Verbose -Message "Performing clean-up..."
 
-    Remove-Item 'Conditional Access Design version 13 PoC.json' -Force -ErrorAction SilentlyContinue
-    Remove-Item 'conditional-access-design-version-13-poc.zip' -Force -ErrorAction SilentlyContinue
+    Remove-Item 'Conditional Access Design version 14 PoC.json' -Force -ErrorAction SilentlyContinue
+    Remove-Item 'conditional-access-design-version-14-poc.zip' -Force -ErrorAction SilentlyContinue
     Remove-Item 'termsofuse.pdf' -Force -ErrorAction SilentlyContinue
 
 
@@ -4180,7 +4179,7 @@ function Export-DCConditionalAccessPolicyDesign {
     # Export all Conditional Access policies from Microsoft Graph as JSON.
     Write-Verbose -Verbose -Message "Exporting Conditional Access policies to '$FilePath'..."
     
-    $ConditionalAccessPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies').value
+    $ConditionalAccessPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies').value | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 
     $Result = foreach ($Policy in $ConditionalAccessPolicies) {
         if ($Policy.DisplayName.StartsWith($PrefixFilter)) {
@@ -4407,7 +4406,7 @@ function Import-DCConditionalAccessPolicyDesign {
 
             try {
                 # Create new policies.
-                Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies' -Body ($Policy | ConvertTo-Json -Depth 10) | Out-Null
+                Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies' -Body ($Policy | ConvertTo-Json -Depth 10) | Out-Null
             }
             catch {
                 Write-Error -Message $_.Exception.Message -ErrorAction Continue
@@ -4553,7 +4552,7 @@ function Set-DCConditionalAccessPoliciesPilotMode {
 
     # Modify all existing policies.
     Write-Verbose -Verbose -Message "Looking for Conditional Access policies to toggle..."
-    $ExistingPolicies = Get-MgIdentityConditionalAccessPolicy
+    $ExistingPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies').value | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 
 
     foreach ($Policy in $ExistingPolicies) {
@@ -4724,7 +4723,7 @@ function Set-DCConditionalAccessPoliciesReportOnlyMode {
 
     # Modify all existing policies.
     Write-Verbose -Verbose -Message "Looking for Conditional Access policies to toggle..."
-    $ExistingPolicies = Get-MgIdentityConditionalAccessPolicy
+    $ExistingPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies').value | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 
 
     foreach ($Policy in $ExistingPolicies) {
@@ -4859,7 +4858,7 @@ function Add-DCConditionalAccessPoliciesBreakGlassGroup {
 
     # Modify all existing policies.
     Write-Verbose -Verbose -Message "Looking for Conditional Access policies to modify..."
-    $ExistingPolicies = Get-MgIdentityConditionalAccessPolicy
+    $ExistingPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies').value | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 
 
     foreach ($Policy in $ExistingPolicies) {
@@ -5648,7 +5647,7 @@ function New-DCConditionalAccessPolicyDesignReport {
     
     # Fetch conditional access policies.
     Write-Verbose -Verbose -Message "Getting all Conditional Access policies..."
-    $CAPolicies = Get-MgIdentityConditionalAccessPolicy
+    $CAPolicies = (Invoke-MgGraphRequest -Method GET -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies').value | ConvertTo-Json -Depth 10 | ConvertFrom-Json
 
     # Fetch service principals for id translation.
     $EnterpriseApps = Get-MgServicePrincipal
