@@ -55,7 +55,7 @@ You can filter on a name prefix with -PrefixFilter.
 **Parameters:**
 
 	-PrefixFilter
-	Description:	Only modify the policies with this prefix.
+	Description:	Only modify the policies with this prefix. The filter is case sensitive.
 	Required:		false
 	
 	-ExcludeGroupName
@@ -234,7 +234,7 @@ You must be a Global Admin to run this command (because of the admin consent req
 	    TermsOfUseName = 'Terms of Use'
 	}
 	    
-	Deploy-DCConditionalAccessBaselinePoC -SkipPolicies "GLOBAL - BLOCK - High-Risk Sign-Ins", "GLOBAL - BLOCK - High-Risk Users", "GLOBAL - GRANT - Medium-Risk Sign-Ins", "GLOBAL - GRANT - Medium-Risk Users"
+	Deploy-DCConditionalAccessBaselinePoC -SkipPolicies "GLOBAL - 108 - BLOCK - High-Risk Sign-Ins", "GLOBAL - 109 - BLOCK - High-Risk Users", "GLOBAL - 201 - GRANT - Medium-Risk Sign-Ins", "GLOBAL - 202 - GRANT - Medium-Risk Users"
 	    
 	Deploy-DCConditionalAccessBaselinePoC -SkipReportOnlyMode # WARNING: USE WITH CAUTION!
 
@@ -298,7 +298,7 @@ The user running this CMDlet (the one who signs in when the authentication pops 
 	Required:		false
 	
 	-PrefixFilter
-	Description:	Only export the policies with this prefix.
+	Description:	Only export the policies with this prefix. The filter is case sensitive.
 	Required:		false
 	
 **Examples:**
@@ -334,7 +334,7 @@ You can filter on a name prefix with -PrefixFilter.
 **Parameters:**
 
 	-PrefixFilter
-	Description:	Only show the policies with this prefix.
+	Description:	Only show the policies with this prefix. The filter is case sensitive.
 	Required:		false
 	
 	-ShowTargetResources
@@ -434,7 +434,7 @@ You can filter on a name prefix with -PrefixFilter.
 **Parameters:**
 
 	-PrefixFilter
-	Description:	Only show the named locations with this prefix.
+	Description:	Only show the named locations with this prefix. The filter is case sensitive.
 	Required:		false
 	
 **Examples:**
@@ -519,7 +519,7 @@ As a best practice you should always have an Entra ID security group with break 
 	Required:		false
 	
 	-PrefixFilter
-	Description:	Only import (and delete) the policies with this prefix in the JSON file.
+	Description:	Only import (and delete) the policies with this prefix in the JSON file. The filter is case sensitive.
 	Required:		false
 	
 **Examples:**
@@ -586,6 +586,29 @@ Check, install, and update the DCToolbox PowerShell module.
 	Install-DCToolbox
 	    
 	Install-DCToolbox -Verbose
+
+---
+
+### Invoke-DCConditionalAccessGallery
+
+**Synopsis:**
+
+Select policies from a list of Entra ID Conditional Access templates, and deploy them in report-only mode.
+
+**Details:**
+
+Select policies from a list of Entra ID Conditional Access templates, and deploy them in report-only mode.
+
+The script will automatically create any missing groups, named locations, country lists, and terms of use, and replace the names in the JSON with the corresponding IDs.
+
+It will also output the result of the policy creation in JSON-format.
+
+**Parameters:**
+
+**Examples:**
+
+	    
+	Invoke-DCConditionalAccessGallery
 
 ---
 
@@ -1108,7 +1131,7 @@ This CMDlet will prompt you for confirmation multiple times before deleting poli
 **Parameters:**
 
 	-PrefixFilter
-	Description:	Only delete the policies with this prefix.
+	Description:	Only delete the policies with this prefix. The filter is case sensitive.
 	Required:		false
 	
 **Examples:**
@@ -1135,12 +1158,12 @@ If you dontt specify a PrefixFilter, ALL policies will be modified to include th
 **Parameters:**
 
 	-PrefixFilter
-	Description:	Only toggle the policies with this prefix.
+	Description:	Only toggle the policies with this prefix. The filter is case sensitive.
 	Required:		false
 	
 	-AddCustomPrefix
 	Description:	Adds a custom prefix to all policy names.
-	Required:		true
+	Required:		false
 	
 **Examples:**
 
@@ -1170,7 +1193,7 @@ You must filter the toggle with a prefix filter to only modify specific policies
 **Parameters:**
 
 	-PrefixFilter
-	Description:	Only toggle the policies with this prefix.
+	Description:	Only toggle the policies with this prefix. The filter is case sensitive.
 	Required:		true
 	
 	-PilotGroupName
@@ -1211,7 +1234,7 @@ You must filter the toggle with a prefix filter to only modify specific policies
 **Parameters:**
 
 	-PrefixFilter
-	Description:	Only toggle the policies with this prefix.
+	Description:	Only toggle the policies with this prefix. The filter is case sensitive.
 	Required:		true
 	
 	-SetToReportOnly
@@ -1327,6 +1350,7 @@ Do not use this script in an unethical or unlawful way. Use it to find weak spot
 
 	    
 	Test-DCEntraIDUserExistence -UseTorHttpProxy -Users "user1@example.com", "user2@example.com", "user3@example.onmicrosoft.com"
+
 
 ---
 
