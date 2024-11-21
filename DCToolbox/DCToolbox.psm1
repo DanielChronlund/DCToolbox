@@ -3315,7 +3315,7 @@ function Get-DCConditionalAccessPolicies {
 
 
     # Connect to Microsoft Graph.
-    Connect-DCMsGraphAsUser -Scopes 'Policy.ReadWrite.ConditionalAccess', 'Policy.Read.All', 'Directory.Read.All' -Verbose
+    Connect-DCMsGraphAsUser -Scopes 'Policy.Read.ConditionalAccess', 'Policy.Read.All', 'Directory.Read.All' -Verbose
     
 
     # Get all existing policies.
@@ -3440,7 +3440,7 @@ function Remove-DCConditionalAccessPolicies {
 
 
     # Connect to Microsoft Graph.
-    Connect-DCMsGraphAsUser -Scopes 'Policy.Read.ConditionalAccess', 'Policy.Read.All', 'Directory.Read.All' -Verbose
+    Connect-DCMsGraphAsUser -Scopes 'Policy.ReadWrite.ConditionalAccess', 'Policy.Read.All', 'Directory.Read.All' -Verbose
 
 
     # Prompt for confirmation:
