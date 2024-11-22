@@ -1653,7 +1653,7 @@ function Enable-DCEntraIDPIMRole {
         $CustomObject | Add-Member -MemberType NoteProperty -Name 'RoleDefinitionId' -Value $RoleAssignment.RoleDefinitionId
         $CustomObject | Add-Member -MemberType NoteProperty -Name 'DisplayName' -Value ($EntraIDRoleTemplates | Where-Object { $_.Id -eq $RoleAssignment.RoleDefinitionId } ).DisplayName
 
-        $PolicyAssignment = Get-MgPolicyRoleManagementPolicyAssignment -Filter "scopeId eq '/' and scopeType eq 'DirectoryRole' and roleDefinitionId eq '$($RoleAssignment.RoleDefinitionId)'" -ExpandProperty "policy(`$expand=rules)"
+        $PolicyAssignment = Get-MgPolicyRoleManagementPolicyAssignment -Filter "scopeId eq '/' and scopeType eq 'DirectoryRole' and roleDefinitionId eq '$($RoleAssignment.RoleDefinitionId)'"
 
         # Get the role management policy that's been assigned:
         $Policy = Get-MgPolicyRoleManagementPolicy -UnifiedRoleManagementPolicyId $PolicyAssignment.PolicyId
