@@ -7929,7 +7929,7 @@ function New-DCConditionalAccessPolicyDesignReport {
         # excludeLocation
         $excludeLocations = foreach ($excludeLocation in $Policy.conditions.locations.excludeLocations) {
             if ($excludeLocation -ne 'All' -and $excludeLocation -ne 'AllTrusted' -and $excludeLocation -ne '00000000-0000-0000-0000-000000000000') {
-                (Get-MgIdentityConditionalAccessNamedLocation -Filter "Id eq '$includeLocation'").DisplayName
+                (Get-MgIdentityConditionalAccessNamedLocation -Filter "Id eq '$excludeLocation'").DisplayName
             }
             elseif ($excludeLocation -eq '00000000-0000-0000-0000-000000000000') {
                 'MFA Trusted IPs'
