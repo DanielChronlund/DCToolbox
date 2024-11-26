@@ -1,5 +1,5 @@
 function Get-DCHelp {
-    $DCToolboxVersion = '2.1.1'
+    $DCToolboxVersion = '2.1.5'
 
 
     $HelpText = @"
@@ -270,16 +270,28 @@ Remove-DCConditionalAccessPolicies -PrefixFilter 'OLD - '
 Remove-DCConditionalAccessPolicies -ReversedPrefixFilter 'GLOBAL - '
 
 
-# --- Conditional Access Policy Gallery ---
+# --- Conditional Access Gallery ---
 
-# Select and deploy one or more policies from the integrated Conditional Access Policy Gallery. This also produces a report of the selected policies in Markdown format.
-Invoke-DCConditionalAccessPolicyGallery
+# Select and deploy one or more policies from the integrated Conditional Access Gallery. This also produces a report of the selected policies in Markdown format.
+Invoke-DCConditionalAccessGallery
+
+# Skip documentation to Markdown file.
+Invoke-DCConditionalAccessGallery -SkipDocumentation
+
+# Select and deploy one or more policies from the integrated Conditional Access Gallery with a custom prefix.
+Invoke-DCConditionalAccessGallery -AddCustomPrefix 'PILOT - '
+
+# Automatically deploy one or more policies from the integrated Conditional Access Gallery by ID.
+Invoke-DCConditionalAccessGallery -AddCustomPrefix 'PILOT - ' -AutoDeployIds 1010, 1020, 1030, 2010, 2020
 
 
 # --- Deploy Conditional Access Baseline PoC ---
 
 # Deploy a complete Conditional Access PoC in report-only mode from https://danielchronlund.com.
 Deploy-DCConditionalAccessBaselinePoC
+
+# Deploy a complete Conditional Access PoC in report-only mode AND create documentation in Markdown format.
+Deploy-DCConditionalAccessBaselinePoC -CreateDocumentation
 
 # Deploy a complete Conditional Access PoC in production mode from https://danielchronlund.com (Dangerous).
 Deploy-DCConditionalAccessBaselinePoC -SkipReportOnlyMode
@@ -1168,6 +1180,54 @@ function Install-DCMicrosoftGraphPowerShellModule {
     Remove-Module Microsoft.Graph* -Force -Verbose:$false
 
     Import-Module Microsoft.Graph.Authentication -Force -Verbose:$false -ErrorAction SilentlyContinue | Out-Null
+}
+
+
+
+function Install-OutConsoleGridView {
+    <#
+        .SYNOPSIS
+            Check, install, and update the Out-ConsoleGridView PowerShell module.
+
+        .INPUTS
+            None
+
+        .OUTPUTS
+            None
+
+        .NOTES
+            Author:   
+        
+        .EXAMPLE
+            Install-OutConsoleGridView
+
+        .EXAMPLE
+            Install-OutConsoleGridView -Verbose
+    #>
+
+
+    [CmdletBinding()]
+    param ()
+
+
+    Write-Verbose -Message "Looking for Out-ConsoleGridView PowerShell module..."
+
+    $ModuleVersion = [string](Get-Module -ListAvailable -Name Microsoft.PowerShell.ConsoleGuiTools -Verbose:$false | Sort-Object Version -Descending | Select-Object -First 1).Version
+    $LatestVersion = (Find-Module Microsoft.PowerShell.ConsoleGuiTools -Verbose:$false | Select-Object -First 1).Version
+    
+    if (!($ModuleVersion)) {
+        Write-Verbose -Message "Not found! Installing Out-ConsoleGridView $LatestVersion..."
+        Install-Module Microsoft.PowerShell.ConsoleGuiTools -Scope CurrentUser -Force -Verbose:$false
+        Write-Verbose -Message "Done!"
+    } elseif ($ModuleVersion -ne $LatestVersion) {
+        Write-Verbose -Message "Found Out-ConsoleGridView $ModuleVersion. Upgrading to $LatestVersion..."
+        Install-Module Microsoft.PowerShell.ConsoleGuiTools -Scope CurrentUser -Force -Verbose:$false
+        Write-Verbose -Message "Done!"
+    } else {
+        Write-Verbose -Message "Out-ConsoleGridView $ModuleVersion found!"
+    }
+
+    Import-Module Microsoft.PowerShell.ConsoleGuiTools -Force -Verbose:$false -ErrorAction SilentlyContinue | Out-Null
 }
 
 
@@ -3639,6 +3699,7 @@ function Rename-DCConditionalAccessPolicies {
 }
 
 
+
 function Get-DCNamedLocations {
     <#
         .SYNOPSIS
@@ -3749,6 +3810,15 @@ function Invoke-DCConditionalAccessGallery {
 
             It will also output the result of the policy creation in JSON-format.
 
+        .PARAMETER AddCustomPrefix
+            Adds a custom prefix to all policy names.
+
+        .PARAMETER AutoDeployIds
+            Specify list of policy IDs to auto-deploy (non-interactive deployment). This parameter is only used for automated deployments.
+
+        .PARAMETER SkipDocumentation
+            Skip the documentation part of the script. There will be no Markdown file produced.
+
         .INPUTS
             None
 
@@ -3762,11 +3832,30 @@ function Invoke-DCConditionalAccessGallery {
 
         .EXAMPLE
             Invoke-DCConditionalAccessGallery
+
+        .EXAMPLE
+            Invoke-DCConditionalAccessGallery -AddCustomPrefix 'PILOT - '
+
+        .EXAMPLE
+            Invoke-DCConditionalAccessGallery -SkipDocumentation -AutoDeployIds 1010, 1020, 1030, 2010, 2020
     #>
 
 
 
     # ----- [Initialisations] -----
+
+    # Script parameters.
+    param (
+        [parameter(Mandatory = $false)]
+        [string]$AddCustomPrefix = '',
+
+        [parameter(Mandatory = $false)]
+        [int[]]$AutoDeployIds,
+
+        [parameter(Mandatory = $false)]
+        [switch]$SkipDocumentation
+    )
+
 
     # Set Error Action - Possible choices: Stop, SilentlyContinue
     $ErrorActionPreference = "Stop"
@@ -3787,8 +3876,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates = @()
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "101"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 101 - BLOCK - Legacy Authentication"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1010"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1010 - BLOCK - Legacy Authentication"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy blocks all connections from insecure legacy protocols like ActiveSync, IMAP, POP3, etc. Blocking legacy authentication, together with MFA, is one of the most important security improvements your can do in the cloud."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -3831,7 +3920,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 101 - BLOCK - Legacy Authentication",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1010 - BLOCK - Legacy Authentication",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -3849,8 +3938,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "102"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 102 - BLOCK - Device Code Auth Flow"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1020"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1020 - BLOCK - Device Code Auth Flow"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This policy blocks users from signing in with OAuth 2.0 device authorization grant flow. https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -3895,7 +3984,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 102 - BLOCK - Device Code Auth Flow",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1020 - BLOCK - Device Code Auth Flow",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -3913,8 +4002,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "103"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 103 - BLOCK - Unsupported Device Platforms"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1030"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1030 - BLOCK - Unsupported Device Platforms"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Block unsupported platforms like Windows Phone, Linux, and other OS variants. Note: Device platform detection is a best effort security signal based on the user agent string and can be spoofed. Always combine this with additional signals like MFA and/or device authentication."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -3966,7 +4055,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 103 - BLOCK - Unsupported Device Platforms",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1030 - BLOCK - Unsupported Device Platforms",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -3984,8 +4073,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "103"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 103 - BLOCK - Unsupported Device Platforms (including Linux)"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1031"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1031 - BLOCK - Unsupported Device Platforms (including Linux)"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Block unsupported platforms like Windows Phone, and other OS variants. Note: Device platform detection is a best effort security signal based on the user agent string and can be spoofed. Always combine this with additional signals like MFA and/or device authentication."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4038,7 +4127,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 103 - BLOCK - Unsupported Device Platforms",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1031 - BLOCK - Unsupported Device Platforms",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4056,8 +4145,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
     
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "104"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 104 - BLOCK - All Countries Except Allowed"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1040"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1040 - BLOCK - All Countries Except Allowed"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy blocks all connections from countries not in the Allowed countries whitelist. You should only allow countries where you expect your users to sign in from. This is not a strong security solution since attackers will easily bypass this with a proxy service, however, this effectively blocks a lot of the automated noise in the cloud."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4106,7 +4195,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 104 - BLOCK - Countries not Allowed",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1040 - BLOCK - Countries not Allowed",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4124,8 +4213,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "105"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 105 - BLOCK - High-Risk Countries"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1050"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1050 - BLOCK - High-Risk Countries"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy blocks all connections from countries in the High-Risk Countries list. This is not a strong security solution since attackers will easily bypass this with a proxy service, however, this effectively blocks a lot of the automated noise in the cloud."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4171,7 +4260,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 105 - BLOCK - High-Risk Countries",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1050 - BLOCK - High-Risk Countries",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4189,8 +4278,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "105"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 105 - BLOCK - High-Risk Countries (including China)"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1051"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1051 - BLOCK - High-Risk Countries (including China)"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy blocks all connections from countries in the High-Risk Countries list. This is not a strong security solution since attackers will easily bypass this with a proxy service, however, this effectively blocks a lot of the automated noise in the cloud."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4236,7 +4325,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 105 - BLOCK - High-Risk Countries",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1051 - BLOCK - High-Risk Countries",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4254,8 +4343,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "106"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 106 - BLOCK - Service Accounts (Trusted Locations Excluded)"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1060"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1060 - BLOCK - Service Accounts (Trusted Locations Excluded)"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Block service accounts (real Entra ID user accounts used by non-humans) from untrusted IP addresses. Service accounts can only connect from allowed IP addresses, but without MFA requirement. Only use service accounts as a last resort!"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4303,7 +4392,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 106 - BLOCK - Service Accounts (Trusted Locations Excluded)",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1060 - BLOCK - Service Accounts (Trusted Locations Excluded)",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4321,8 +4410,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "107"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 107 - BLOCK - Explicitly Blocked Cloud Apps"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1070"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1070 - BLOCK - Explicitly Blocked Cloud Apps"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This policy can be used to explicitly block certain cloud apps across the organisation. This is handy if you want to permanently block certain apps, or temporary block unwanted apps, for example, if there is a known critical security flaw."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4363,7 +4452,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 107 - BLOCK - Explicitly Blocked Cloud Apps",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1070 - BLOCK - Explicitly Blocked Cloud Apps",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4381,8 +4470,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "108"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 108 - BLOCK - Guest Access to Sensitive Apps"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1080"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1080 - BLOCK - Guest Access to Sensitive Apps"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Block guests from accessing sensitive apps like Microsoft Admin Portals."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4428,7 +4517,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 108 - BLOCK - Guest Access to Sensitive Apps",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1080 - BLOCK - Guest Access to Sensitive Apps",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4446,8 +4535,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "109"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 109 - BLOCK - High-Risk Sign-Ins"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1090"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1090 - BLOCK - High-Risk Sign-Ins"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy blocks all high-risk authentications detected by Entra ID Protection. This is called risk-based Conditional Access. Note that this policy requires Entra ID P2 for all targeted users."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4490,7 +4579,7 @@ function Invoke-DCConditionalAccessGallery {
             "high"
         ]
     },
-    "displayName": "GLOBAL - 109 - BLOCK - High-Risk Sign-Ins",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1090 - BLOCK - High-Risk Sign-Ins",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4508,8 +4597,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "110"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 110 - BLOCK - High-Risk Users"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "1100"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 1100 - BLOCK - High-Risk Users"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Same as above but looks at the user risk level instead of the sign-in risk level. For example, many medium risk sign-ins can result in a high-risk user."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4552,7 +4641,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 110 - BLOCK - High-Risk Users",
+    "displayName": "$AddCustomPrefix`GLOBAL - 1100 - BLOCK - High-Risk Users",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4570,12 +4659,26 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "201"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 201 - GRANT - Medium-Risk Sign-Ins"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2010"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2010 - GRANT - Medium-Risk Sign-Ins"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy enforces MFA on all medium-risk authentications detected by Entra ID Protection."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
-    "sessionControls": null,
+    "sessionControls": {
+        "cloudAppSecurity": null,
+        "continuousAccessEvaluation": null,
+        "applicationEnforcedRestrictions": null,
+        "signInFrequency": {
+            "type": null,
+            "value": null,
+            "frequencyInterval": "everyTime",
+            "authenticationType": "primaryAndSecondaryAuthentication",
+            "isEnabled": true
+        },
+        "secureSignInSession": null,
+        "persistentBrowser": null,
+        "disableResilienceDefaults": null
+    },
     "conditions": {
         "platforms": null,
         "userRiskLevels": [],
@@ -4614,7 +4717,7 @@ function Invoke-DCConditionalAccessGallery {
             "medium"
         ]
     },
-    "displayName": "GLOBAL - 201 - GRANT - Medium-Risk Sign-ins",
+    "displayName": "$AddCustomPrefix`GLOBAL - 2010 - GRANT - Medium-Risk Sign-ins",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4632,12 +4735,26 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "202"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 202 - GRANT - Medium-Risk Users"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2020"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2020 - GRANT - Medium-Risk Users"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Same as above but looks at the user risk level instead of the sign-in risk level."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
-    "sessionControls": null,
+    "sessionControls": {
+        "cloudAppSecurity": null,
+        "continuousAccessEvaluation": null,
+        "applicationEnforcedRestrictions": null,
+        "signInFrequency": {
+            "type": null,
+            "value": null,
+            "frequencyInterval": "everyTime",
+            "authenticationType": "primaryAndSecondaryAuthentication",
+            "isEnabled": true
+        },
+        "secureSignInSession": null,
+        "persistentBrowser": null,
+        "disableResilienceDefaults": null
+    },
     "conditions": {
         "platforms": null,
         "userRiskLevels": [
@@ -4676,7 +4793,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 202 - GRANT - Medium-Risk Users",
+    "displayName": "$AddCustomPrefix`GLOBAL - 2020 - GRANT - Medium-Risk Users",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4694,8 +4811,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "203"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 203 - GRANT - Device Registration"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2030"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2030 - GRANT - Device Registration"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy enforces MFA for all Entra ID device registrations performed from a non-corporate network."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4736,7 +4853,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 203 - GRANT - Device Registration",
+    "displayName": "$AddCustomPrefix`GLOBAL - 2030 - GRANT - Device Registration",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4754,8 +4871,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "204"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 204 - GRANT - Terms of Use (All users)"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2040"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2040 - GRANT - Terms of Use (All users)"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy forces Terms of Use, like an Terms of Use or NDA, on all users. Users must read and agree to this policy the first time they sign in before they're granted access."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4799,7 +4916,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 204 - GRANT - Terms of Use (All users)",
+    "displayName": "$AddCustomPrefix`GLOBAL - 2040 - GRANT - Terms of Use (All users)",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4817,8 +4934,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "204"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 204 - GRANT - Terms of Use (Guests only)"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2041"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2041 - GRANT - Terms of Use (Guests only)"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This global policy forces Terms of Use, like an Terms of Use or NDA, on all guest users. Guests must read and agree to this policy the first time they sign in before they're granted access."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4863,7 +4980,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 204 - GRANT - Terms of Use (Guests only)",
+    "displayName": "$AddCustomPrefix`GLOBAL - 2041 - GRANT - Terms of Use (Guests only)",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4881,8 +4998,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "205"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 205 - GRANT - MFA for All Users"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2050"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2050 - GRANT - MFA for All Users"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Protects all user authentications with MFA. This policy applies to both internal users and guest users on all devices and clients. Intune enrollment is excluded since MFA is not supported during enrollment of fully managed devices."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4928,7 +5045,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 205 - GRANT - MFA for All Users",
+    "displayName": "$AddCustomPrefix`GLOBAL - 2050 - GRANT - MFA for All Users",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -4946,8 +5063,79 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "206"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 206 - GRANT - Mobile Apps and Desktop Clients"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2055"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2055 - GRANT - Phishing Resistant MFA for Admins"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Protects privileged admin roles with phishing resistant MFA, like FIDO2."
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
+{
+    "grantControls": {
+        "builtInControls": [],
+        "customAuthenticationFactors": [],
+        "termsOfUse": [],
+        "authenticationStrength": {
+            "id": "00000000-0000-0000-0000-000000000004"
+        },
+        "operator": "OR"
+    },
+    "partialEnablementStrategy": null,
+    "templateId": null,
+    "sessionControls": null,
+    "displayName": "$AddCustomPrefix`GLOBAL - 2055 - GRANT - Phishing Resistant MFA for Admins",
+    "conditions": {
+        "deviceStates": null,
+        "devices": null,
+        "users": {
+            "excludeGuestsOrExternalUsers": null,
+            "includeRoles": [
+                "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3",
+                "0526716b-113d-4c15-b2c8-68e3c22b9f80",
+                "158c047a-c907-4556-b7ef-446551a6b5f7",
+                "17315797-102d-40b4-93e0-432062caca18",
+                "e6d1a23a-da11-4be4-9570-befc86d067a7",
+                "b1be1c3e-b65d-4f19-8427-f6fa0d97feb9",
+                "62e90394-69f5-4237-9190-012177145e10",
+                "8ac3fc64-6eca-42ea-9e69-59f4c7b60eb2",
+                "7be44c8a-adaf-4e2a-84d6-ab2649e08a13",
+                "e8611ab8-c189-46e8-94e1-60213ab1f814",
+                "194ae4cb-b126-40b2-bd5b-6091b380977d"
+            ],
+            "includeUsers": [],
+            "excludeGroups": [
+                "ENTRAGROUP_Excluded from Conditional Access_ENTRAGROUP"
+            ],
+            "includeGroups": [],
+            "excludeUsers": [],
+            "includeGuestsOrExternalUsers": null,
+            "excludeRoles": []
+        },
+        "clientApplications": null,
+        "applications": {
+            "includeAuthenticationContextClassReferences": [],
+            "includeUserActions": [],
+            "includeApplications": [
+                "All"
+            ],
+            "applicationFilter": null,
+            "excludeApplications": []
+        },
+        "signInRiskLevels": [],
+        "userRiskLevels": [],
+        "platforms": null,
+        "clientAppTypes": [
+            "all"
+        ],
+        "times": null,
+        "locations": null
+    },
+    "state": "enabledForReportingButNotEnforced"
+}
+"@
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonResult" -Value ""
+    $ConditionalAccessTemplates += $CustomObject
+
+    $CustomObject = New-Object -TypeName psobject
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2060"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2060 - GRANT - Mobile Apps and Desktop Clients"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Requires mobile apps and desktop clients to be Intune compliant. BYOD is blocked."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -4991,7 +5179,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 206 - GRANT - Mobile Apps and Desktop Clients",
+    "displayName": "$AddCustomPrefix`GLOBAL - 2060 - GRANT - Mobile Apps and Desktop Clients",
     "state": "disabled",
     "templateId": null,
     "grantControls": {
@@ -5009,8 +5197,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "207"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 207 - GRANT - Mobile Device Access Requirements"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "2070"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 2070 - GRANT - Mobile Device Access Requirements"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Requires apps to be protected by Intune App Protection Policies (MAM) on iOS and Android. This blocks third-party app store apps and encrypts org data on mobile devices."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -5060,7 +5248,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 207 - GRANT - Mobile Device Access Requirements",
+    "displayName": "$AddCustomPrefix`GLOBAL - 2070 - GRANT - Mobile Device Access Requirements",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": {
@@ -5078,8 +5266,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "301"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 301 - SESSION - Admin Persistence (9 hours)"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "3010"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 3010 - SESSION - Admin Persistence (9 hours)"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This policy disables token persistence for all accounts with admin roles assigned. It also sets the sign-in frequency to 9 hours. This is to protect against Primary Refresh Token stealing attacks by keeping such tokens few and short-lived. Always use separate cloud-only accounts for admin role assignments."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -5147,7 +5335,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 301 - SESSION - Admin Persistence",
+    "displayName": "$AddCustomPrefix`GLOBAL - 3010 - SESSION - Admin Persistence",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": null
@@ -5157,8 +5345,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "301"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 301 - SESSION - Admin Persistence (4 hours)"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "3011"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 3011 - SESSION - Admin Persistence (4 hours)"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This policy disables token persistence for all accounts with admin roles assigned. It also sets the sign-in frequency to 9 hours. This is to protect against Primary Refresh Token stealing attacks by keeping such tokens few and short-lived. Always use separate cloud-only accounts for admin role assignments."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -5226,7 +5414,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 301 - SESSION - Admin Persistence",
+    "displayName": "$AddCustomPrefix`GLOBAL - 3011 - SESSION - Admin Persistence",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": null
@@ -5236,8 +5424,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "302"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 302 - SESSION - BYOD Persistence"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "3020"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 3020 - SESSION - BYOD Persistence"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This policy disables token persistence for all accounts signing in from a non-compliant (unmanaged) device. It also sets the sign-in frequency to 9 hours."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -5310,7 +5498,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 302 - SESSION - BYOD Persistence",
+    "displayName": "$AddCustomPrefix`GLOBAL - 3020 - SESSION - BYOD Persistence",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": null
@@ -5320,8 +5508,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "303"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 303 - SESSION - Register Security Info Requirements"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "3030"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 3030 - SESSION - Register Security Info Requirements"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Require reauthentication when registering security info. This helps to protect against different identity theft attacks."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -5376,7 +5564,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 303 - SESSION - Register Security Info Requirements",
+    "displayName": "$AddCustomPrefix`GLOBAL - 3030 - SESSION - Register Security Info Requirements",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": null
@@ -5386,8 +5574,8 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "304"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "GLOBAL - 304 - SESSION - Block File Downloads On Unmanaged Devices"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "3040"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 3040 - SESSION - Block File Downloads On Unmanaged Devices"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This policy blocks file downloads in SharePoint Online, Teams, OneDrive, and Exchange Online on unmanaged devices. Note that App Enforced Restrictions must be enabled in the services for this to work."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -5447,7 +5635,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "GLOBAL - 304 - SESSION - Block File Downloads On Unmanaged Devices",
+    "displayName": "$AddCustomPrefix`GLOBAL - 3040 - SESSION - Block File Downloads On Unmanaged Devices",
     "state": "enabledForReportingButNotEnforced",
     "templateId": null,
     "grantControls": null
@@ -5457,8 +5645,72 @@ function Invoke-DCConditionalAccessGallery {
     $ConditionalAccessTemplates += $CustomObject
 
     $CustomObject = New-Object -TypeName psobject
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "001"
-    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "OVERRIDE - 001 - GRANT - Example"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "3050"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`GLOBAL - 3050 - SESSION - Defender for Cloud Apps Integration"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "This policy enables Defender for Cloud Apps integration (reverse proxy) for Office 365 access. It requires Defender for Cloud Apps licenses for all targeted users. Access and Session policies are managed from the Defender XDR portal."
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
+{
+    "grantControls": null,
+    "partialEnablementStrategy": null,
+    "conditions": {
+        "userRiskLevels": [],
+        "applications": {
+        "includeApplications": [
+            "Office365"
+        ],
+        "applicationFilter": null,
+        "includeAuthenticationContextClassReferences": [],
+        "includeUserActions": [],
+        "excludeApplications": []
+        },
+        "locations": null,
+        "clientApplications": null,
+        "users": {
+        "excludeGuestsOrExternalUsers": null,
+        "includeRoles": [],
+        "excludeRoles": [],
+        "excludeUsers": [],
+        "excludeGroups": [
+            "ENTRAGROUP_Excluded from Conditional Access_ENTRAGROUP"
+        ],
+        "includeGuestsOrExternalUsers": null,
+        "includeUsers": [
+            "All"
+        ],
+        "includeGroups": []
+        },
+        "devices": null,
+        "clientAppTypes": [
+        "all"
+        ],
+        "signInRiskLevels": [],
+        "deviceStates": null,
+        "times": null,
+        "platforms": null
+    },
+    "sessionControls": {
+        "continuousAccessEvaluation": null,
+        "applicationEnforcedRestrictions": null,
+        "signInFrequency": null,
+        "cloudAppSecurity": {
+        "cloudAppSecurityType": "mcasConfigured",
+        "isEnabled": true
+        },
+        "secureSignInSession": null,
+        "persistentBrowser": null,
+        "disableResilienceDefaults": null
+    },
+    "displayName": "GLOBAL - 3050 - SESSION - Defender for Cloud Apps Integration",
+    "state": "disabled",
+    "templateId": null,
+    }
+"@
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonResult" -Value ""
+    $ConditionalAccessTemplates += $CustomObject
+
+    $CustomObject = New-Object -TypeName psobject
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Id" -Value "0001"
+    $CustomObject | Add-Member -MemberType NoteProperty -Name "Name" -Value "$AddCustomPrefix`OVERRIDE - 0001 - GRANT - Example"
     $CustomObject | Add-Member -MemberType NoteProperty -Name "Description" -Value "Finally, this is an example policy. All scenarios that deviates from the global baseline should have the OVERRIDE prefix, and be targeted by groups. These groups of users can be excluded from global policies. In this way, we have a strong foundations, and manages deviations with small groups of users."
     $CustomObject | Add-Member -MemberType NoteProperty -Name "JsonTemplate" -Value @"
 {
@@ -5499,7 +5751,7 @@ function Invoke-DCConditionalAccessGallery {
         },
         "signInRiskLevels": []
     },
-    "displayName": "OVERRIDE - 001 - GRANT - Example",
+    "displayName": "$AddCustomPrefix`OVERRIDE - 0001 - GRANT - Example",
     "state": "disabled",
     "templateId": null,
     "grantControls": {
@@ -5519,6 +5771,8 @@ function Invoke-DCConditionalAccessGallery {
 
     # ----- [Execution] -----
 
+    Write-Verbose -Verbose -Message "Launching The Conditional Access Gallery!"
+
     # Check PowerShell version.
     Confirm-DCPowerShellVersion -Verbose
 
@@ -5531,8 +5785,24 @@ function Invoke-DCConditionalAccessGallery {
     Connect-DCMsGraphAsUser -Scopes 'Group.ReadWrite.All', 'Policy.ReadWrite.ConditionalAccess', 'Policy.Read.All', 'Directory.Read.All', 'Agreement.ReadWrite.All', 'Application.Read.All', 'RoleManagement.ReadWrite.Directory' -Verbose
 
 
-    ## Prompt for policy selection.
-    $SelectedConditionalAccessTemplates = $ConditionalAccessTemplates | Out-ConsoleGridView -Title "Select Conditional Access Policy Templates" -OutputMode Multiple
+    # Prompt for policy selection, or auto-deploy if -AutoDeployIds was specified.
+    $SelectedConditionalAccessTemplates = $null
+
+    if ($AutoDeployIds) {
+        $SelectedConditionalAccessTemplates = foreach ($Template in $ConditionalAccessTemplates) {
+            if ($Template.Id -in $AutoDeployIds) {
+                $Template
+            }
+        }
+    } else {
+        Install-OutConsoleGridView -Verbose
+
+        $SelectedConditionalAccessTemplates = $ConditionalAccessTemplates | Select-Object Name, Description | Out-ConsoleGridView -Title "Select Conditional Access Policy Templates" -OutputMode Multiple
+    }
+
+    $SelectedConditionalAccessTemplates = foreach ($Policy in $SelectedConditionalAccessTemplates) {
+        $ConditionalAccessTemplates | where Name -eq $Policy.Name
+    }
 
     $NewPolicies = @()
 
@@ -5721,6 +5991,9 @@ function Invoke-DCConditionalAccessGallery {
                 $fileContentBytes = [System.Text.Encoding]::Default.GetBytes($fileContent)
                 $fileContentEncoded = [System.Convert]::ToBase64String($fileContentBytes)
 
+                # Remove the local PDF file.
+                Remove-Item 'termsofuse.pdf' -Force -ErrorAction SilentlyContinue
+
                 $GraphBody = @"
 {
     "displayName": "$TermsOfUse",
@@ -5747,6 +6020,8 @@ function Invoke-DCConditionalAccessGallery {
         # Replace the terms of use names in the Json with the terms of uses Ids.
          foreach ($PolicyTermsOfUse in $PolicyTermsOfUses) {
             $Json = $Json -replace "ENTRATERMSOFUSE_$($PolicyTermsOfUse.DisplayName)`_ENTRATERMSOFUSE", $PolicyTermsOfUse.Id
+
+            $Json = $Json | ConvertFrom-Json | Sort-Object | ConvertTo-Json -Depth 10
         }
 
 
@@ -5768,16 +6043,17 @@ function Invoke-DCConditionalAccessGallery {
 
 
     # Output result:
-    $NewPolicies | Select-Object displayName, state | Sort-Object displayName
+    $NewPolicies | Select-Object displayName, state, id | Sort-Object displayName
 
 
-    # Output Conditional Access documentation in Markdown format:
-    # Markdown file path
-    $MarkDownFile = "Conditional Access Design $(Get-Date -Format 'yyyy-MM-dd').md"
-    Write-Verbose -Verbose -Message "Saving documentation in Markdownformat: '$MarkDownFile'..."
+    if ($SkipDocumentation -eq $false) {
+        # Output Conditional Access documentation in Markdown format:
+        # Markdown file path
+        $MarkDownFile = "Conditional Access Design $(Get-Date -Format 'yyyy-MM-dd').md"
+        Write-Verbose -Verbose -Message "Saving documentation in Markdownformat: '$MarkDownFile'..."
 
-    # Write to the Markdown file
-    @"
+        # Write to the Markdown file
+        @"
 # Conditional Access Design
 
 **Created:** $(Get-Date -Format 'yyyy-MM-dd')
@@ -5794,16 +6070,42 @@ By leveraging Conditional Access, our goal is to enhance security posture while 
 
 "@ > $MarkDownFile
 
+        foreach ($Policy in $SelectedConditionalAccessTemplates) {
+            # Define the desired order
+            $desiredOrder = @('displayName', 'state', 'conditions', 'grantControls', 'sessionControls')
 
-    foreach ($Policy in $SelectedConditionalAccessTemplates) {
-        Add-Content $MarkDownFile @"
-- [$($Policy.Name)](#$($Policy.Name.ToLower().Replace(' ', '-')))
+            # Convert JSON to PowerShell object
+            $object = $Policy.JsonTemplate.Trim() | ConvertFrom-Json -Depth 10
+
+            # Sort the properties
+            $sortedObject = [PSCustomObject]@{
+                # Add attributes in the desired order
+                displayName      = $object.displayName
+                state            = $object.state
+                conditions       = $object.conditions
+                grantControls    = $object.grantControls
+                sessionControls  = $object.sessionControls
+            }
+
+            # Add any remaining attributes that were not in the desired order
+            $remainingAttributes = $object.PSObject.Properties |
+                Where-Object { $desiredOrder -notcontains $_.Name } |
+                ForEach-Object {
+                    Add-Member -InputObject $sortedObject -MemberType NoteProperty -Name $_.Name -Value $_.Value
+                }
+
+            # Convert back to JSON
+            $Policy.JsonTemplate = $sortedObject | ConvertTo-Json -Depth 10
+
+
+            Add-Content $MarkDownFile @"
+- [$($Policy.Name)](#$($Policy.Name.ToLower() -replace ' ', '-' -replace '\(', '' -replace '\)', ''))
 
 "@
-    }
+        }
 
-    foreach ($Policy in $SelectedConditionalAccessTemplates) {
-        Add-Content $MarkDownFile @"
+        foreach ($Policy in $SelectedConditionalAccessTemplates) {
+            Add-Content $MarkDownFile @"
 
 ### $($Policy.Name)
 
@@ -5813,14 +6115,14 @@ By leveraging Conditional Access, our goal is to enhance security posture while 
 | **Description** | $($Policy.Description) |
 
 ``````json
-$($Policy.JsonTemplate.Trim() -replace 'ENTRAGROUP_', '' -replace '_ENTRAGROUP', '' -replace 'ENTRAIPLIST_', '' -replace '_ENTRAIPLIST', '' -replace 'ENTRACOUNTRYLIST_', '' -replace '_ENTRACOUNTRYLIST', '' -replace 'ENTRATERMSOFUSE_', '' -replace '_ENTRATERMSOFUSE', '')
+$($Policy.JsonTemplate -replace 'ENTRAGROUP_', '' -replace '_ENTRAGROUP', '' -replace 'ENTRAIPLIST_', '' -replace '_ENTRAIPLIST', '' -replace 'ENTRACOUNTRYLIST_', '' -replace '_ENTRACOUNTRYLIST', '' -replace 'ENTRATERMSOFUSE_', '' -replace '_ENTRATERMSOFUSE', '')
 ``````
 
 ---
 
 "@
+        }
     }
-
 
     Write-Verbose -Verbose -Message "Done!"
 
@@ -5836,7 +6138,7 @@ function Deploy-DCConditionalAccessBaselinePoC {
             Automatically deploy the latest version of the Conditional Access policy design baseline from https://danielchronlund.com.
 
         .DESCRIPTION
-            This CMDlet downloads the latest version of the Conditional Access policy design baseline from https://danielchronlund.com/2020/11/26/azure-ad-conditional-access-policy-design-baseline-with-automatic-deployment-support/. It creates all necessary dependencies like exclusion groups, named locations, and terms of use, and then deploys all Conditional Access policies in the baseline.
+            Automatically deploy the latest version of the Conditional Access policy design baseline from https://danielchronlund.com. It creates all necessary dependencies like exclusion groups, named locations, and terms of use, and then deploys all Conditional Access policies in the baseline.
 
             All Conditional Access policies created by this CMDlet will be set to report-only mode.
 
@@ -5847,26 +6149,11 @@ function Deploy-DCConditionalAccessBaselinePoC {
         .PARAMETER AddCustomPrefix
             Adds a custom prefix to all policy names.
 
-        .PARAMETER ExcludeGroupDisplayName
-            Set a custom name for the break glass exclude group. Default: 'Excluded from Conditional Access'. You can set this to an existing group if you already have one.
-
-        .PARAMETER ServiceAccountGroupDisplayName
-            Set a custom name for the service account group. Default: 'Conditional Access Service Accounts'. You can set this to an existing group if you already have one.
-
-        .PARAMETER NamedLocationCorpNetwork
-            Set a custom name for the corporate network named location. Default: 'Corporate Network'. You can set this to an existing named location if you already have one.
-
-        .PARAMETER NamedLocationAllowedCountries
-            Set a custom name for the allowed countries named location. Default: 'Allowed Countries'. You can set this to an existing named location if you already have one.
-
-        .PARAMETER TermsOfUseName
-            Set a custom name for the terms of use. Default: 'Terms of Use'. You can set this to an existing Terms of Use if you already have one.
-
-        .PARAMETER SkipPolicies
-            Specify one or more policy names in the baseline that you want to skip.
-
         .PARAMETER SkipReportOnlyMode
             All Conditional Access policies created by this CMDlet will be set to report-only mode if you don't use this parameter. WARNING: Use this parameter with caution since ALL POLICIES will go live for ALL USERS when you specify this.
+
+        .PARAMETER CreateDocumentation
+            Creates a Markdown documentation of the baseline.
 
         .INPUTS
             None
@@ -5886,22 +6173,10 @@ function Deploy-DCConditionalAccessBaselinePoC {
             Deploy-DCConditionalAccessBaselinePoC -AddCustomPrefix 'PILOT - '
 
         .EXAMPLE
-            # Customize names of dependencies.
-            $Parameters = @{
-                ExcludeGroupDisplayName = 'Excluded from Conditional Access'
-                ServiceAccountGroupDisplayName = 'Conditional Access Service Accounts'
-                NamedLocationCorpNetwork = 'Corporate Network'
-                NamedLocationAllowedCountries = 'Allowed Countries'
-                TermsOfUseName = 'Terms of Use'
-            }
-
-            Deploy-DCConditionalAccessBaselinePoC @Parameters
+            Deploy-DCConditionalAccessBaselinePoC -CreateDocumentation
 
         .EXAMPLE
-            Deploy-DCConditionalAccessBaselinePoC -SkipPolicies "GLOBAL - 108 - BLOCK - High-Risk Sign-Ins", "GLOBAL - 109 - BLOCK - High-Risk Users", "GLOBAL - 201 - GRANT - Medium-Risk Sign-Ins", "GLOBAL - 202 - GRANT - Medium-Risk Users"
-
-        .EXAMPLE
-            Deploy-DCConditionalAccessBaselinePoC -SkipReportOnlyMode # WARNING: USE WITH CAUTION!
+            Deploy-DCConditionalAccessBaselinePoC -SkipReportOnlyMode # Use with caution!
     #>
 
 
@@ -5914,22 +6189,7 @@ function Deploy-DCConditionalAccessBaselinePoC {
         [string]$AddCustomPrefix = '',
 
         [parameter(Mandatory = $false)]
-        [string]$ExcludeGroupDisplayName = 'Excluded from Conditional Access',
-
-        [parameter(Mandatory = $false)]
-        [string]$ServiceAccountGroupDisplayName = 'Conditional Access Service Accounts',
-
-        [parameter(Mandatory = $false)]
-        [string]$NamedLocationCorpNetwork = 'Corporate Network',
-
-        [parameter(Mandatory = $false)]
-        [string]$NamedLocationAllowedCountries = 'Allowed Countries',
-
-        [parameter(Mandatory = $false)]
-        [string]$TermsOfUseName = 'Terms of Use',
-
-        [parameter(Mandatory = $false)]
-        [string[]]$SkipPolicies,
+        [switch]$CreateDocumentation,
 
         [parameter(Mandatory = $false)]
         [switch]$SkipReportOnlyMode
@@ -5981,210 +6241,32 @@ function Deploy-DCConditionalAccessBaselinePoC {
             return
         }
     }
-    
-
-    # Step 2: Manage Conditional Access exclude group for break glass accounts.
-
-    # Check for existing group.
-    Write-Verbose -Verbose -Message "Checking for existing exclude group '$ExcludeGroupDisplayName'..."
-    $ExistingExcludeGroup = Get-MgGroup -Filter "DisplayName eq '$ExcludeGroupDisplayName'" -Top 1
-
-    if ($ExistingExcludeGroup) {
-        Write-Verbose -Verbose -Message "The group '$ExcludeGroupDisplayName' already exists!"
-    } else {
-        # Create group if none existed.
-        Write-Verbose -Verbose -Message "Could not find '$ExcludeGroupDisplayName'. Creating group..."
-        $ExistingExcludeGroup = New-MgGroup -DisplayName $ExcludeGroupDisplayName -MailNickName $($ExcludeGroupDisplayName.Replace(' ', '_')) -MailEnabled:$False -SecurityEnable -IsAssignableToRole
-
-        # Sleep for 5 seconds.
-        Start-Sleep -Seconds 5
-
-        # Add current user to the new exclude group.
-        $CurrentUser = Get-MgUser -Filter "UserPrincipalName eq '$((Get-MgContext).Account)'"
-        Write-Verbose -Verbose -Message "Adding current user '$($CurrentUser.UserPrincipalName)' to the new group..."
-        New-MgGroupMember -GroupId $ExistingExcludeGroup.Id -DirectoryObjectId $CurrentUser.Id
-    }
 
 
-    # Step 3: Manage Conditional Access service account group (for non-human accounts).
-
-    # Check for existing group.
-    Write-Verbose -Verbose -Message "Checking for existing service account group '$ServiceAccountGroupDisplayName'..."
-    $ExistingServiceAccountGroup = Get-MgGroup -Filter "DisplayName eq '$ServiceAccountGroupDisplayName'" -Top 1
-
-    if ($ExistingServiceAccountGroup) {
-        Write-Verbose -Verbose -Message "The group '$ServiceAccountGroupDisplayName' already exists!"
-    } else {
-        # Create group if none existed.
-        Write-Verbose -Verbose -Message "Could not find '$ServiceAccountGroupDisplayName'. Creating group..."
-        $ExistingServiceAccountGroup = New-MgGroup -DisplayName $ServiceAccountGroupDisplayName -MailNickName $($ServiceAccountGroupDisplayName.Replace(' ', '_')) -MailEnabled:$False -SecurityEnable -IsAssignableToRole
-    }
-
-
-    # Step 4: Manage named location for corporate network trusted IP addresses.
-
-    # Check for existing named location.
-    Write-Verbose -Verbose -Message "Checking for existing corporate network named location '$NamedLocationCorpNetwork'..."
-    $ExistingCorpNetworkNamedLocation = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq '$NamedLocationCorpNetwork'" -Top 1
-
-    if ($ExistingCorpNetworkNamedLocation) {
-        Write-Verbose -Verbose -Message "The named location '$NamedLocationCorpNetwork' already exists!"
-    } else {
-        # Create named location if none existed.
-        Write-Verbose -Verbose -Message "Could not find '$NamedLocationCorpNetwork'. Creating named location..."
-
-        # Get current public IP address:
-        $PublicIp = (Get-DCPublicIp).ip
-
-        $params = @{
-        "@odata.type" = "#microsoft.graph.ipNamedLocation"
-        DisplayName = "$NamedLocationCorpNetwork"
-        IsTrusted = $true
-        IpRanges = @(
-            @{
-                "@odata.type" = "#microsoft.graph.iPv4CidrRange"
-                CidrAddress = "$PublicIp/32"
-            }
-        )
-        }
-
-        $ExistingCorpNetworkNamedLocation = New-MgIdentityConditionalAccessNamedLocation -BodyParameter $params
-    }
-
-
-    # Step 5: Manage named location for allowed countries.
-
-    # Check for existing named location.
-    Write-Verbose -Verbose -Message "Checking for existing allowed countries named location '$NamedLocationAllowedCountries'..."
-    $ExistingNamedLocationAllowedCountries = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq '$NamedLocationAllowedCountries'" -Top 1
-
-    if ($ExistingNamedLocationAllowedCountries) {
-        Write-Verbose -Verbose -Message "The named location '$NamedLocationAllowedCountries' already exists!"
-    } else {
-        # Create named location if none existed.
-        Write-Verbose -Verbose -Message "Could not find '$NamedLocationAllowedCountries'. Creating named location..."
-
-        $params = @{
-            "@odata.type" = "#microsoft.graph.countryNamedLocation"
-            DisplayName = "$NamedLocationAllowedCountries"
-            CountriesAndRegions = @(
-                "SE"
-                "US"
-            )
-            IncludeUnknownCountriesAndRegions = $true
-        }
-        
-        $ExistingNamedLocationAllowedCountries = New-MgIdentityConditionalAccessNamedLocation -BodyParameter $params
-    }
-
-
-    # Step 6: Manage Terms of Use.
-
-    # Check for existing Terms of Use.
-    if ($SkipPolicies -eq 'GLOBAL - 204 - GRANT - Terms of Use') {
-        Write-Verbose -Verbose -Message "Skipping Terms of Use because -SkipPolicies was set!"
-    } else {
-        Write-Verbose -Verbose -Message "Checking for existing Terms of Use '$TermsOfUseName'..."
-        $ExistingTermsOfUse = Get-MgAgreement | where DisplayName -eq $TermsOfUseName | Select-Object -Last 1
-
-        if ($ExistingTermsOfUse) {
-            Write-Verbose -Verbose -Message "The Terms of Use '$TermsOfUseName' already exists!"
-        } else {
-            # Create Terms of Use if none existed.
-            Write-Verbose -Verbose -Message "Could not find '$TermsOfUseName'. Creating Terms of Use..."
-
-            # Download Terms of Use template from https://danielchronlund.com.
-            Write-Verbose -Verbose -Message "Downloading Terms of Use template from https://danielchronlund.com..."
-            Invoke-WebRequest 'https://danielchronlundcloudtechblog.files.wordpress.com/2023/09/termsofuse.pdf' -OutFile 'termsofuse.pdf'
-
-            $fileContent = get-content -Raw 'termsofuse.pdf'
-            $fileContentBytes = [System.Text.Encoding]::Default.GetBytes($fileContent)
-            $fileContentEncoded = [System.Convert]::ToBase64String($fileContentBytes)
-
-            $GraphBody = @"
-{
-    "displayName": "Terms of Use",
-    "isViewingBeforeAcceptanceRequired": true,
-    "files": [
-        {
-        "fileName": "termsofuse.pdf",
-        "language": "en",
-        "isDefault": true,
-        "fileData": {
-            "data": "$fileContentEncoded"
-        }
-        }
-    ]
-}
-"@
-
-            Write-Verbose -Verbose -Message "Uploading template to Entra ID..."
-
-            $ExistingTermsOfUse = Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/v1.0/identityGovernance/termsOfUse/agreements' -Body $GraphBody
-        }
-    }
-
-
-    # Step 7: Download Conditional Access baseline in JSON format from https://danielchronlund.com.
-
-    Write-Verbose -Verbose -Message "Downloading Conditional Access baseline template from https://danielchronlund.com..."
-    Invoke-WebRequest 'https://danielchronlund.com/wp-content/uploads/2020/11/conditional-access-design-version-14-poc.zip' -OutFile 'conditional-access-design-version-14-poc.zip'
-
-    Write-Verbose -Verbose -Message "Unziping template..."
-    Expand-Archive -LiteralPath 'conditional-access-design-version-14-poc.zip' -DestinationPath . -Force
-
-
-    # Step 8: Modify JSON content.
-
-    $JSONContent = Get-Content -Raw -Path 'conditional-access-design-version-14.json'
-
-    # Report-only mode.
-    if (!($SkipReportOnlyMode)) {
-        $JSONContent = $JSONContent -replace '"enabled"', '"enabledForReportingButNotEnforced"'
-    } else {
-        $JSONContent = $JSONContent -replace '"disabled"', '"enabled"'
-    }
-
-    $JSONContent = $JSONContent -replace 'GLOBAL - ', "$AddCustomPrefix`GLOBAL - "
-    $JSONContent = $JSONContent -replace 'OVERRIDE - ', "$AddCustomPrefix`OVERRIDE - "
-    $JSONContent = $JSONContent -replace 'REPLACE WITH EXCLUDE GROUP ID', $ExistingExcludeGroup.Id
-    $JSONContent = $JSONContent -replace 'REPLACE WITH SERVICE ACCOUNT GROUP ID', $ExistingServiceAccountGroup.Id
-    $JSONContent = $JSONContent -replace 'REPLACE WITH SERVICE ACCOUNT TRUSTED NAMED LOCATION ID', $ExistingCorpNetworkNamedLocation.Id
-    $JSONContent = $JSONContent -replace 'REPLACE WITH ALLOWED COUNTRIES NAMED LOCATION ID', $ExistingNamedLocationAllowedCountries.Id
-    $JSONContent = $JSONContent -replace 'REPLACE WITH TERMS OF USE ID', $ExistingTermsOfUse.Id
- 
-
-    # Step 9: Deploy Conditional Access baseline.
-
+    # Deploy Conditional Access baseline.
     Write-Verbose -Verbose -Message "Deploying Conditional Access policies..."
 
-    $ConditionalAccessPolicies = $JSONContent | ConvertFrom-Json
+    $NewPolicies = $null
 
-    foreach ($Policy in $ConditionalAccessPolicies) {
-        if ($SkipPolicies -contains $Policy.DisplayName) {
-            Write-Verbose -Verbose -Message "Skipping '$($Policy.DisplayName)'!"
-        } else {
-            Start-Sleep -Seconds 1
-            Write-Verbose -Verbose -Message "Creating '$($Policy.DisplayName)'..."
-
-            try {
-                # Create new policies.
-                Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies' -Body ($Policy | ConvertTo-Json -Depth 10) | Out-Null
-            }
-            catch {
-                Write-Error -Message $_.Exception.Message -ErrorAction Continue
-            }
-        }
+    if ($CreateDocumentation) {
+        $NewPolicies = Invoke-DCConditionalAccessGallery -AddCustomPrefix $AddCustomPrefix -AutoDeployIds 1010, 1020, 1030, 1040, 1050, 1060, 1070, 1080, 1090, 1100, 2010, 2020, 3020, 2040, 2050, 2055, 2060, 2070, 3010, 3020, 3030, 3040, 0001
+    } else {
+        $NewPolicies = Invoke-DCConditionalAccessGallery -AddCustomPrefix $AddCustomPrefix -SkipDocumentation -AutoDeployIds 1010, 1020, 1030, 1040, 1050, 1060, 1070, 1080, 1090, 1100, 2010, 2020, 3020, 2040, 2050, 2055, 2060, 2070, 3010, 3020, 3030, 3040, 0001
     }
 
+    if ($SkipReportOnlyMode) {
+        foreach ($Policy in $NewPolicies) {
+            Write-Verbose -Verbose -Message "Setting '$($Policy.displayName)' to enabled..."
 
-    # Step 10: Clean-up.
+            $params = @{
+                State = "enabled"
+            }
+            
+            Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $Policy.id -BodyParameter $params
 
-    Write-Verbose -Verbose -Message "Performing clean-up..."
-
-    Remove-Item 'conditional-access-design-version-14.json' -Force -ErrorAction SilentlyContinue
-    Remove-Item 'conditional-access-design-version-14-poc.zip' -Force -ErrorAction SilentlyContinue
-    Remove-Item 'termsofuse.pdf' -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
+        }
+    }
 
 
     Write-Verbose -Verbose -Message "Done!"

@@ -176,7 +176,7 @@ Automatically deploy the latest version of the Conditional Access policy design 
 
 **Details:**
 
-This CMDlet downloads the latest version of the Conditional Access policy design baseline from https://danielchronlund.com/2020/11/26/azure-ad-conditional-access-policy-design-baseline-with-automatic-deployment-support/. It creates all necessary dependencies like exclusion groups, named locations, and terms of use, and then deploys all Conditional Access policies in the baseline.
+Automatically deploy the latest version of the Conditional Access policy design baseline from https://danielchronlund.com. It creates all necessary dependencies like exclusion groups, named locations, and terms of use, and then deploys all Conditional Access policies in the baseline.
 
 All Conditional Access policies created by this CMDlet will be set to report-only mode.
 
@@ -190,28 +190,8 @@ You must be a Global Admin to run this command (because of the admin consent req
 	Description:	Adds a custom prefix to all policy names.
 	Required:		false
 	
-	-ExcludeGroupDisplayName
-	Description:	Set a custom name for the break glass exclude group. Default: 'Excluded from Conditional Access'. You can set this to an existing group if you already have one.
-	Required:		false
-	
-	-ServiceAccountGroupDisplayName
-	Description:	Set a custom name for the service account group. Default: 'Conditional Access Service Accounts'. You can set this to an existing group if you already have one.
-	Required:		false
-	
-	-NamedLocationCorpNetwork
-	Description:	Set a custom name for the corporate network named location. Default: 'Corporate Network'. You can set this to an existing named location if you already have one.
-	Required:		false
-	
-	-NamedLocationAllowedCountries
-	Description:	Set a custom name for the allowed countries named location. Default: 'Allowed Countries'. You can set this to an existing named location if you already have one.
-	Required:		false
-	
-	-TermsOfUseName
-	Description:	Set a custom name for the terms of use. Default: 'Terms of Use'. You can set this to an existing Terms of Use if you already have one.
-	Required:		false
-	
-	-SkipPolicies
-	Description:	Specify one or more policy names in the baseline that you want to skip.
+	-CreateDocumentation
+	Description:	Creates a Markdown documentation of the baseline.
 	Required:		false
 	
 	-SkipReportOnlyMode
@@ -224,19 +204,10 @@ You must be a Global Admin to run this command (because of the admin consent req
 	Deploy-DCConditionalAccessBaselinePoC
 	    
 	Deploy-DCConditionalAccessBaselinePoC -AddCustomPrefix 'PILOT - '
-	Deploy-DCConditionalAccessBaselinePoC @Parameters    
-	# Customize names of dependencies.
-	$Parameters = @{
-	    ExcludeGroupDisplayName = 'Excluded from Conditional Access'
-	    ServiceAccountGroupDisplayName = 'Conditional Access Service Accounts'
-	    NamedLocationCorpNetwork = 'Corporate Network'
-	    NamedLocationAllowedCountries = 'Allowed Countries'
-	    TermsOfUseName = 'Terms of Use'
-	}
 	    
-	Deploy-DCConditionalAccessBaselinePoC -SkipPolicies "GLOBAL - 108 - BLOCK - High-Risk Sign-Ins", "GLOBAL - 109 - BLOCK - High-Risk Users", "GLOBAL - 201 - GRANT - Medium-Risk Sign-Ins", "GLOBAL - 202 - GRANT - Medium-Risk Users"
+	Deploy-DCConditionalAccessBaselinePoC -CreateDocumentation
 	    
-	Deploy-DCConditionalAccessBaselinePoC -SkipReportOnlyMode # WARNING: USE WITH CAUTION!
+	Deploy-DCConditionalAccessBaselinePoC -SkipReportOnlyMode # Use with caution!
 
 ---
 
@@ -605,10 +576,26 @@ It will also output the result of the policy creation in JSON-format.
 
 **Parameters:**
 
+	-AddCustomPrefix
+	Description:	Adds a custom prefix to all policy names.
+	Required:		false
+	
+	-AutoDeployIds
+	Description:	Specify list of policy IDs to auto-deploy (non-interactive deployment). This parameter is only used for automated deployments.
+	Required:		false
+	
+	-SkipDocumentation
+	Description:	Skip the documentation part of the script. There will be no Markdown file produced.
+	Required:		false
+	
 **Examples:**
 
 	    
 	Invoke-DCConditionalAccessGallery
+	    
+	Invoke-DCConditionalAccessGallery -AddCustomPrefix 'PILOT - '
+	    
+	Invoke-DCConditionalAccessGallery -SkipDocumentation -AutoDeployIds 1010, 1020, 1030, 2010, 2020
 
 ---
 
@@ -1351,10 +1338,9 @@ Do not use this script in an unethical or unlawful way. Use it to find weak spot
 	    
 	Test-DCEntraIDUserExistence -UseTorHttpProxy -Users "user1@example.com", "user2@example.com", "user3@example.onmicrosoft.com"
 
-
 ---
 
 
-Please follow me on my blog https://danielchronlund.com, on LinkedIn and on X!
+Please follow me on my blog https://danielchronlund.com and on LinkedIn!
 
 @DanielChronlund
